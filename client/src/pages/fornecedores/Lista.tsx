@@ -43,7 +43,7 @@ export default function FornecedoresLista() {
         </Button>
       </div>
 
-      <SearchInput value={search} onChange={setSearch} placeholder="Buscar por nome..." className="w-64" />
+      <SearchInput value={search} onChange={setSearch} placeholder="Buscar por nome..." className="w-full sm:w-64" />
 
       <div className="rounded-lg border bg-card">
         {isLoading ? (

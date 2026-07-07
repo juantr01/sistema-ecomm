@@ -80,7 +80,7 @@ export default function VendaForm() {
               {errors.productId && <p className="text-xs text-destructive">{errors.productId.message}</p>}
             </div>
 
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
               <div className="space-y-1.5">
                 <Label>Quantidade</Label>
                 <Input type="number" min={1} step={1} {...register("quantity")} />

@@ -22,14 +22,14 @@ export default function Relatorios() {
   const { data: lowStock, isLoading: loadingLowStock } = useLowStockReport();
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4 md:space-y-6">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <h1 className="text-xl font-semibold">Relatórios</h1>
       </div>
 
       <DateRangeFilter value={range} onChange={setRange} />
 
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
+      <div className="grid grid-cols-2 gap-3 sm:gap-4 lg:grid-cols-4">
         <StatCard label="Total vendido" value={loadingSummary ? "—" : formatCurrency(summary!.totalVendido)} />
         <StatCard label="Total gasto" value={loadingSummary ? "—" : formatCurrency(summary!.totalGasto)} tone="warning" />
         <StatCard

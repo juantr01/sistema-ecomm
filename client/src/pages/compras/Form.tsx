@@ -86,7 +86,7 @@ export default function CompraForm() {
       <Card>
         <CardContent className="space-y-5 pt-5">
           <form onSubmit={handleSubmit(onSubmit)} className="space-y-5">
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
               <div className="space-y-1.5">
                 <Label>Fornecedor</Label>
                 <Controller
@@ -125,8 +125,11 @@ export default function CompraForm() {
 
               <div className="space-y-3">
                 {fields.map((field, index) => (
-                  <div key={field.id} className="flex items-start gap-2 rounded-md border p-3">
-                    <div className="flex-1 space-y-1.5">
+                  <div
+                    key={field.id}
+                    className="flex flex-col gap-2 rounded-md border p-3 sm:flex-row sm:items-start"
+                  >
+                    <div className="space-y-1.5 sm:flex-1">
                       <Label className="text-xs text-muted-foreground">Produto</Label>
                       <Controller
                         control={control}
@@ -136,31 +139,33 @@ export default function CompraForm() {
                         )}
                       />
                     </div>
-                    <div className="w-24 space-y-1.5">
-                      <Label className="text-xs text-muted-foreground">Qtd.</Label>
-                      <Input type="number" min={1} step={1} {...register(`items.${index}.quantity`)} />
+                    <div className="flex items-end gap-2">
+                      <div className="flex-1 space-y-1.5 sm:w-24 sm:flex-none">
+                        <Label className="text-xs text-muted-foreground">Qtd.</Label>
+                        <Input type="number" min={1} step={1} {...register(`items.${index}.quantity`)} />
+                      </div>
+                      <div className="flex-1 space-y-1.5 sm:w-32 sm:flex-none">
+                        <Label className="text-xs text-muted-foreground">Custo unit. (R$)</Label>
+                        <Input type="number" min={0} step="0.01" {...register(`items.${index}.unitCost`)} />
+                      </div>
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="icon"
+                        className="shrink-0 sm:mt-6"
+                        disabled={fields.length === 1}
+                        onClick={() => remove(index)}
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </Button>
                     </div>
-                    <div className="w-32 space-y-1.5">
-                      <Label className="text-xs text-muted-foreground">Custo unit. (R$)</Label>
-                      <Input type="number" min={0} step="0.01" {...register(`items.${index}.unitCost`)} />
-                    </div>
-                    <Button
-                      type="button"
-                      variant="ghost"
-                      size="icon"
-                      className="mt-6"
-                      disabled={fields.length === 1}
-                      onClick={() => remove(index)}
-                    >
-                      <Trash2 className="h-4 w-4" />
-                    </Button>
                   </div>
                 ))}
               </div>
               {errors.items?.message && <p className="text-xs text-destructive">{errors.items.message}</p>}
             </div>
 
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
               <div className="space-y-1.5">
                 <Label>Frete (R$)</Label>
                 <Input type="number" min={0} step="0.01" {...register("freight")} />

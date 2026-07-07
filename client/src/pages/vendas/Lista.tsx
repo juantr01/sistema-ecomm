@@ -44,7 +44,12 @@ export default function VendasLista() {
         </Button>
       </div>
 
-      <SearchInput value={search} onChange={setSearch} placeholder="Buscar por produto ou SKU..." className="w-64" />
+      <SearchInput
+        value={search}
+        onChange={setSearch}
+        placeholder="Buscar por produto ou SKU..."
+        className="w-full sm:w-64"
+      />
 
       <div className="rounded-lg border bg-card">
         {isLoading ? (

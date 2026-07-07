@@ -47,7 +47,7 @@ export default function ComprasLista() {
       </div>
 
       <Select value={supplierId} onValueChange={setSupplierId}>
-        <SelectTrigger className="w-56">
+        <SelectTrigger className="w-full sm:w-56">
           <SelectValue placeholder="Fornecedor" />
         </SelectTrigger>
         <SelectContent>

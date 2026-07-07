@@ -84,7 +84,7 @@ export default function FornecedorForm() {
               <Input {...register("name")} />
               {errors.name && <p className="text-xs text-destructive">{errors.name.message}</p>}
             </div>
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
               <div className="space-y-1.5">
                 <Label>WhatsApp</Label>
                 <Input placeholder="(11) 99999-9999" {...register("whatsapp")} />

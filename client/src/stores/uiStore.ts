@@ -5,6 +5,10 @@ type Theme = "light" | "dark" | "system";
 interface UiState {
   sidebarCollapsed: boolean;
   toggleSidebar: () => void;
+  mobileMenuOpen: boolean;
+  openMobileMenu: () => void;
+  closeMobileMenu: () => void;
+  setMobileMenuOpen: (open: boolean) => void;
   theme: Theme;
   setTheme: (theme: Theme) => void;
 }
@@ -29,6 +33,10 @@ export const useUiStore = create<UiState>((set) => ({
       localStorage.setItem("sidebarCollapsed", String(next));
       return { sidebarCollapsed: next };
     }),
+  mobileMenuOpen: false,
+  openMobileMenu: () => set({ mobileMenuOpen: true }),
+  closeMobileMenu: () => set({ mobileMenuOpen: false }),
+  setMobileMenuOpen: (open) => set({ mobileMenuOpen: open }),
   theme: storedTheme,
   setTheme: (theme) => {
     localStorage.setItem("theme", theme);

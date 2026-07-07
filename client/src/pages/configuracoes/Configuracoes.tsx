@@ -88,7 +88,7 @@ export default function Configuracoes() {
   }
 
   return (
-    <div className="mx-auto max-w-2xl space-y-6">
+    <div className="mx-auto max-w-2xl space-y-4 md:space-y-6">
       <h1 className="text-xl font-semibold">Configurações</h1>
 
       <Card>

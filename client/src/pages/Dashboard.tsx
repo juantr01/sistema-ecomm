@@ -11,7 +11,7 @@ export default function Dashboard() {
   const { data: trend, isLoading: loadingTrend } = useRevenueTrend(30);
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4 md:space-y-6">
       <h1 className="text-xl font-semibold">Dashboard</h1>
 
       {!isLoading && summary && summary.estoqueBaixo > 0 && (
@@ -24,7 +24,7 @@ export default function Dashboard() {
         </Link>
       )}
 
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
+      <div className="grid grid-cols-2 gap-3 sm:gap-4 lg:grid-cols-4">
         <StatCard
           label="Faturamento do dia"
           value={isLoading ? "—" : formatCurrency(summary!.faturamentoDia)}

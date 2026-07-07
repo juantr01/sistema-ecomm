@@ -31,7 +31,7 @@ export default function FornecedorDetalhe() {
         </Button>
       </div>
 
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
+      <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 sm:gap-4">
         <StatCard label="Total comprado (itens)" value={String(supplier.totalItemsPurchased)} />
         <StatCard label="Total gasto" value={formatCurrency(supplier.totalSpent)} />
         <StatCard label="Compras realizadas" value={String(supplier.purchases.length)} />
@@ -41,7 +41,7 @@ export default function FornecedorDetalhe() {
         <CardHeader>
           <CardTitle>Dados de contato</CardTitle>
         </CardHeader>
-        <CardContent className="grid grid-cols-2 gap-3 text-sm">
+        <CardContent className="grid grid-cols-1 gap-3 text-sm sm:grid-cols-2">
           <div>
             <p className="text-muted-foreground">WhatsApp</p>
             <p>{supplier.whatsapp ?? "—"}</p>
@@ -51,7 +51,7 @@ export default function FornecedorDetalhe() {
             <p>{supplier.city ?? "—"}</p>
           </div>
           {supplier.notes && (
-            <div className="col-span-2">
+            <div className="col-span-1 sm:col-span-2">
               <p className="text-muted-foreground">Observações</p>
               <p>{supplier.notes}</p>
             </div>

@@ -58,7 +58,8 @@ export function QuickAddSaleButton() {
       }}
     >
       <Button size="sm" onClick={() => setOpen(true)}>
-        <Plus className="h-4 w-4" /> Nova venda
+        <Plus className="h-4 w-4" />
+        <span className="hidden sm:inline">Nova venda</span>
       </Button>
       <DialogContent>
         <DialogHeader>
@@ -82,7 +83,7 @@ export function QuickAddSaleButton() {
             {errors.productId && <p className="text-xs text-destructive">{errors.productId.message}</p>}
           </div>
 
-          <div className="grid grid-cols-2 gap-3">
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
             <div className="space-y-1.5">
               <Label>Quantidade</Label>
               <Input type="number" min={1} step={1} {...register("quantity")} />

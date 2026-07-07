@@ -1,32 +1,8 @@
 import { NavLink } from "react-router-dom";
-import {
-  LayoutDashboard,
-  Package,
-  Boxes,
-  ShoppingCart,
-  Truck,
-  Receipt,
-  Wallet,
-  BarChart3,
-  Settings,
-  ChevronsLeft,
-  ChevronsRight,
-  Store,
-} from "lucide-react";
+import { ChevronsLeft, ChevronsRight, Store } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useUiStore } from "@/stores/uiStore";
-
-const NAV_ITEMS = [
-  { to: "/", label: "Dashboard", icon: LayoutDashboard, end: true },
-  { to: "/produtos", label: "Produtos", icon: Package },
-  { to: "/estoque", label: "Estoque", icon: Boxes },
-  { to: "/compras", label: "Compras", icon: ShoppingCart },
-  { to: "/fornecedores", label: "Fornecedores", icon: Truck },
-  { to: "/vendas", label: "Vendas", icon: Wallet },
-  { to: "/despesas", label: "Despesas", icon: Receipt },
-  { to: "/relatorios", label: "Relatórios", icon: BarChart3 },
-  { to: "/configuracoes", label: "Configurações", icon: Settings },
-];
+import { NAV_ITEMS } from "./nav-items";
 
 export function Sidebar() {
   const { sidebarCollapsed, toggleSidebar } = useUiStore();
@@ -34,7 +10,7 @@ export function Sidebar() {
   return (
     <aside
       className={cn(
-        "sticky top-0 flex h-screen shrink-0 flex-col border-r bg-card transition-all duration-200",
+        "sticky top-0 hidden h-screen shrink-0 flex-col border-r bg-card transition-all duration-200 md:flex",
         sidebarCollapsed ? "w-16" : "w-60"
       )}
     >

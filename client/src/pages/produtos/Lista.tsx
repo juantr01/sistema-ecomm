@@ -50,10 +50,15 @@ export default function ProdutosLista() {
         </Button>
       </div>
 
-      <div className="flex flex-wrap items-center gap-3">
-        <SearchInput value={search} onChange={setSearch} placeholder="Buscar por nome ou SKU..." className="w-64" />
+      <div className="flex flex-col items-start gap-3 sm:flex-row sm:flex-wrap sm:items-center">
+        <SearchInput
+          value={search}
+          onChange={setSearch}
+          placeholder="Buscar por nome ou SKU..."
+          className="w-full sm:w-64"
+        />
         <Select value={categoryId} onValueChange={setCategoryId}>
-          <SelectTrigger className="w-48">
+          <SelectTrigger className="w-full sm:w-48">
             <SelectValue placeholder="Categoria" />
           </SelectTrigger>
           <SelectContent>

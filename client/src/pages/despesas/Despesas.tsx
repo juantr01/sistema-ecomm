@@ -91,7 +91,7 @@ export default function Despesas() {
       </div>
 
       <Select value={categoryFilter} onValueChange={setCategoryFilter}>
-        <SelectTrigger className="w-56">
+        <SelectTrigger className="w-full sm:w-56">
           <SelectValue placeholder="Categoria" />
         </SelectTrigger>
         <SelectContent>
@@ -160,7 +160,7 @@ export default function Despesas() {
               <Input {...register("description")} />
               {errors.description && <p className="text-xs text-destructive">{errors.description.message}</p>}
             </div>
-            <div className="grid grid-cols-2 gap-3">
+            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
               <div className="space-y-1.5">
                 <Label>Categoria</Label>
                 <Controller
