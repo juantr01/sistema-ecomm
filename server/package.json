@@ -7,7 +7,7 @@
   "scripts": {
     "dev": "tsx watch src/index.ts",
     "build": "prisma generate && tsc",
-    "start": "node dist/index.js",
+    "start": "prisma migrate deploy && tsx prisma/seed.ts && node dist/index.js",
     "prisma:migrate": "prisma migrate dev",
     "prisma:generate": "prisma generate",
     "prisma:studio": "prisma studio",
@@ -25,6 +25,8 @@
     "express": "^4.21.2",
     "jsonwebtoken": "^9.0.2",
     "multer": "^2.0.1",
+    "prisma": "^6.1.0",
+    "tsx": "^4.19.2",
     "zod": "^3.24.1"
   },
   "devDependencies": {
@@ -35,8 +37,6 @@
     "@types/jsonwebtoken": "^9.0.7",
     "@types/multer": "^1.4.12",
     "@types/node": "^22.10.5",
-    "prisma": "^6.1.0",
-    "tsx": "^4.19.2",
     "typescript": "^5.7.2"
   }
 }
