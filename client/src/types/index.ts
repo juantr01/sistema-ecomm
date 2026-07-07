@@ -21,6 +21,7 @@ export interface Product {
   minStock: number;
   costPrice: number;
   salePrice: number;
+  trackStock: boolean;
   notes: string | null;
   imageUrl: string | null;
   active: boolean;

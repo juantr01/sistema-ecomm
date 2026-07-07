@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
+import { Switch } from "@/components/ui/switch";
 import { Card, CardContent } from "@/components/ui/card";
 import { Combobox } from "@/components/shared/Combobox";
 import { useProduct, useCreateProduct, useUpdateProduct, useUploadProductImage } from "@/hooks/useProducts";
@@ -25,6 +26,7 @@ const schema = z.object({
   minStock: z.coerce.number().int().min(0),
   costPrice: z.coerce.number().min(0),
   salePrice: z.coerce.number().min(0),
+  trackStock: z.boolean(),
   notes: z.string().optional(),
 });
 
@@ -58,6 +60,7 @@ export default function ProdutoForm() {
       minStock: 0,
       costPrice: 0,
       salePrice: 0,
+      trackStock: false,
     },
   });
 
@@ -73,6 +76,7 @@ export default function ProdutoForm() {
         minStock: product.minStock,
         costPrice: product.costPrice,
         salePrice: product.salePrice,
+        trackStock: product.trackStock,
         notes: product.notes ?? "",
       });
       setPreview(product.imageUrl);
@@ -195,6 +199,21 @@ export default function ProdutoForm() {
               <div className="space-y-1.5">
                 <Label>Tamanho</Label>
                 <Input {...register("size")} />
+              </div>
+
+              <div className="col-span-1 flex items-center justify-between gap-3 rounded-md border p-3 sm:col-span-2">
+                <div className="space-y-0.5">
+                  <Label>Controlar estoque deste produto</Label>
+                  <p className="text-xs text-muted-foreground">
+                    Ative só se você mantém estoque físico deste item. Produtos de dropshipping devem ficar desativados
+                    e não aparecem na aba Estoque.
+                  </p>
+                </div>
+                <Controller
+                  control={control}
+                  name="trackStock"
+                  render={({ field }) => <Switch checked={field.value} onCheckedChange={field.onChange} />}
+                />
               </div>
 
               <div className="space-y-1.5">

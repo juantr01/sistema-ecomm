@@ -26,7 +26,7 @@ export async function listProducts(query: ListProductsQuery) {
   });
 
   if (query.lowStock) {
-    products = products.filter((p) => p.stockQuantity <= p.minStock);
+    products = products.filter((p) => p.trackStock && p.stockQuantity <= p.minStock);
   }
 
   return products;

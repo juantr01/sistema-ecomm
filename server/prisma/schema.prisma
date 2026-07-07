@@ -38,6 +38,7 @@ model Product {
   size          String?
   stockQuantity Int      @default(0)
   minStock      Int      @default(0)
+  trackStock    Boolean  @default(false)
   costPrice     Decimal  @default(0) @db.Decimal(12, 2)
   salePrice     Decimal  @default(0) @db.Decimal(12, 2)
   notes         String?

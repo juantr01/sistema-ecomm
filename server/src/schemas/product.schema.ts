@@ -10,6 +10,7 @@ export const createProductSchema = z.object({
   minStock: z.coerce.number().int().min(0).default(0),
   costPrice: z.coerce.number().min(0).default(0),
   salePrice: z.coerce.number().min(0).default(0),
+  trackStock: z.coerce.boolean().default(false),
   notes: z.string().optional().nullable(),
 });
 

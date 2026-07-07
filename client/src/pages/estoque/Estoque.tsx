@@ -14,7 +14,6 @@ import { Combobox } from "@/components/shared/Combobox";
 import { SearchInput } from "@/components/shared/SearchInput";
 import { EmptyState } from "@/components/shared/EmptyState";
 import { useStockLevels, useStockMovements, useAdjustStock } from "@/hooks/useStock";
-import { useProducts } from "@/hooks/useProducts";
 import { formatDateTime } from "@/lib/format";
 import { toast } from "@/stores/toastStore";
 import { ApiError } from "@/lib/api";
@@ -39,7 +38,6 @@ export default function Estoque() {
 
   const { data: levels, isLoading: loadingLevels } = useStockLevels();
   const { data: movements, isLoading: loadingMovements } = useStockMovements();
-  const { data: products } = useProducts({ active: true });
   const adjustStock = useAdjustStock();
 
   const {
@@ -95,7 +93,10 @@ export default function Estoque() {
             {loadingLevels ? (
               <div className="p-6 text-sm text-muted-foreground">Carregando...</div>
             ) : filteredLevels.length === 0 ? (
-              <EmptyState title="Nenhum produto encontrado" />
+              <EmptyState
+                title="Nenhum produto com estoque rastreado"
+                description='Ative "Controlar estoque deste produto" na edição do produto para ele aparecer aqui. Produtos de dropshipping ficam de fora por padrão.'
+              />
             ) : (
               <Table>
                 <TableHeader>
@@ -177,7 +178,7 @@ export default function Estoque() {
                     value={field.value}
                     onChange={field.onChange}
                     placeholder="Selecione o produto"
-                    options={(products ?? []).map((p) => ({ value: p.id, label: `${p.name} (${p.sku})` }))}
+                    options={(levels ?? []).map((p) => ({ value: p.id, label: `${p.name} (${p.sku})` }))}
                   />
                 )}
               />

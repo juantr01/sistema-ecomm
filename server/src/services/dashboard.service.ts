@@ -22,7 +22,10 @@ export async function getDashboardSummary() {
       _sum: { amount: true },
     }),
     prisma.product.count({ where: { active: true } }),
-    prisma.product.findMany({ where: { active: true }, select: { stockQuantity: true, minStock: true } }),
+    prisma.product.findMany({
+      where: { active: true, trackStock: true },
+      select: { stockQuantity: true, minStock: true },
+    }),
     prisma.sale.groupBy({
       by: ["productId"],
       where: { saleDate: { gte: monthStart, lte: monthEnd } },
