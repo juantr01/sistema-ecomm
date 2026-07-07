@@ -16,6 +16,11 @@ export const env = {
   jwtExpiresIn: process.env.JWT_EXPIRES_IN ?? "7d",
   clientUrl: process.env.CLIENT_URL ?? "http://localhost:5173",
   cookieName: process.env.COOKIE_NAME ?? "ecomm_token",
+  r2AccountId: required("R2_ACCOUNT_ID"),
+  r2AccessKeyId: required("R2_ACCESS_KEY_ID"),
+  r2SecretAccessKey: required("R2_SECRET_ACCESS_KEY"),
+  r2BucketName: required("R2_BUCKET_NAME"),
+  r2PublicUrl: required("R2_PUBLIC_URL"),
 };
 
 export const isProduction = env.nodeEnv === "production";

@@ -1,7 +1,6 @@
 import express from "express";
 import cors from "cors";
 import cookieParser from "cookie-parser";
-import path from "path";
 import { env } from "./config/env";
 import { errorHandler, notFoundHandler } from "./middlewares/error.middleware";
 
@@ -23,7 +22,6 @@ app.set("trust proxy", 1);
 app.use(cors({ origin: env.clientUrl, credentials: true }));
 app.use(express.json());
 app.use(cookieParser());
-app.use("/uploads", express.static(path.join(__dirname, "..", "uploads")));
 
 app.get("/api/health", (_req, res) => res.json({ ok: true }));
 

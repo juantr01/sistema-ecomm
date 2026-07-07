@@ -1,7 +1,6 @@
 {
   "rewrites": [
     { "source": "/api/:path*", "destination": "https://server-production-c3e8.up.railway.app/api/:path*" },
-    { "source": "/uploads/:path*", "destination": "https://server-production-c3e8.up.railway.app/uploads/:path*" },
     { "source": "/(.*)", "destination": "/index.html" }
   ]
 }

@@ -1,5 +1,6 @@
 import { Request, Response, NextFunction } from "express";
 import { AppError } from "../utils/AppError";
+import { uploadImageToR2 } from "../utils/r2";
 import * as productService from "../services/product.service";
 
 export async function listHandler(req: Request, res: Response, next: NextFunction) {
@@ -48,7 +49,7 @@ export async function uploadImageHandler(req: Request, res: Response, next: Next
     if (!req.file) {
       throw new AppError("Nenhum arquivo enviado", 400);
     }
-    const imageUrl = `/uploads/${req.file.filename}`;
+    const imageUrl = await uploadImageToR2(req.file.buffer, req.file.mimetype, req.file.originalname);
     res.json(await productService.updateProductImage(req.params.id, imageUrl));
   } catch (err) {
     next(err);
