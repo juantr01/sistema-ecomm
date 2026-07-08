@@ -98,7 +98,7 @@ export default function ProdutosLista() {
                 <TableHead>SKU</TableHead>
                 <TableHead>Categoria</TableHead>
                 <TableHead>Status</TableHead>
-                <TableHead>Estoque</TableHead>
+                <TableHead>Estoque / Vendas</TableHead>
                 <TableHead>Custo</TableHead>
                 <TableHead>Venda</TableHead>
                 <TableHead className="text-right">Ações</TableHead>
@@ -106,7 +106,7 @@ export default function ProdutosLista() {
             </TableHeader>
             <TableBody>
               {products.map((product) => {
-                const isLow = product.stockQuantity <= product.minStock;
+                const isLow = product.sourceType === "OWN_STOCK" && product.stockQuantity <= product.minStock;
                 return (
                   <TableRow key={product.id}>
                     <TableCell>
@@ -136,10 +136,14 @@ export default function ProdutosLista() {
                       )}
                     </TableCell>
                     <TableCell>
-                      <div className="flex items-center gap-2">
-                        <span>{product.stockQuantity}</span>
-                        {isLow && <Badge variant="destructive">Baixo</Badge>}
-                      </div>
+                      {product.sourceType === "DROPSHIPPING" ? (
+                        <span className="text-muted-foreground">{product.salesCount ?? 0} vendas</span>
+                      ) : (
+                        <div className="flex items-center gap-2">
+                          <span>{product.stockQuantity}</span>
+                          {isLow && <Badge variant="destructive">Baixo</Badge>}
+                        </div>
+                      )}
                     </TableCell>
                     <TableCell>{formatCurrency(product.costPrice)}</TableCell>
                     <TableCell>{formatCurrency(product.salePrice)}</TableCell>

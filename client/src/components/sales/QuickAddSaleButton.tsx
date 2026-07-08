@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useForm, Controller } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
@@ -16,6 +16,7 @@ import { ApiError } from "@/lib/api";
 const schema = z.object({
   productId: z.string().min(1, "Selecione um produto"),
   quantity: z.coerce.number().int().positive("Informe uma quantidade válida"),
+  unitCost: z.coerce.number().min(0, "Informe o custo do produto"),
   totalAmount: z.coerce.number().positive("Informe um valor válido"),
 });
 
@@ -31,14 +32,24 @@ export function QuickAddSaleButton() {
     register,
     handleSubmit,
     reset,
-    formState: { errors },
-  } = useForm<FormValues>({ resolver: zodResolver(schema) });
+    watch,
+    setValue,
+    formState: { errors, dirtyFields },
+  } = useForm<FormValues>({ resolver: zodResolver(schema), defaultValues: { unitCost: 0 } });
+
+  const selectedProductId = watch("productId");
+
+  useEffect(() => {
+    if (!selectedProductId || dirtyFields.unitCost) return;
+    const product = products?.find((p) => p.id === selectedProductId);
+    if (product) setValue("unitCost", product.costPrice);
+  }, [selectedProductId, products, dirtyFields.unitCost, setValue]);
 
   async function onSubmit(values: FormValues) {
     try {
       await createSale.mutateAsync(values);
       toast({ title: "Venda registrada", variant: "success" });
-      reset({ productId: "", quantity: undefined, totalAmount: undefined } as any);
+      reset({ productId: "", quantity: undefined, unitCost: 0, totalAmount: undefined } as any);
       setOpen(false);
     } catch (err) {
       toast({
@@ -90,7 +101,12 @@ export function QuickAddSaleButton() {
               {errors.quantity && <p className="text-xs text-destructive">{errors.quantity.message}</p>}
             </div>
             <div className="space-y-1.5">
-              <Label>Valor vendido (R$)</Label>
+              <Label>Custo do produto (R$)</Label>
+              <Input type="number" min={0} step="0.01" {...register("unitCost")} />
+              {errors.unitCost && <p className="text-xs text-destructive">{errors.unitCost.message}</p>}
+            </div>
+            <div className="col-span-1 space-y-1.5 sm:col-span-2">
+              <Label>Valor recebido da plataforma (R$)</Label>
               <Input type="number" min={0} step="0.01" {...register("totalAmount")} />
               {errors.totalAmount && <p className="text-xs text-destructive">{errors.totalAmount.message}</p>}
             </div>

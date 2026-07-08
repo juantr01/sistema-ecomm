@@ -3,7 +3,8 @@ import { z } from "zod";
 export const createSaleSchema = z.object({
   productId: z.string().min(1, "Produto obrigatório"),
   quantity: z.coerce.number().int().positive("Quantidade deve ser maior que zero"),
-  totalAmount: z.coerce.number().min(0, "Valor vendido inválido"),
+  unitCost: z.coerce.number().min(0, "Custo do produto inválido"),
+  totalAmount: z.coerce.number().min(0, "Valor recebido inválido"),
   saleDate: z.coerce.date().optional().default(() => new Date()),
 });
 

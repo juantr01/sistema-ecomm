@@ -29,7 +29,14 @@ export async function listProducts(query: ListProductsQuery) {
     products = products.filter((p) => p.sourceType === "OWN_STOCK" && p.stockQuantity <= p.minStock);
   }
 
-  return products;
+  const salesAgg = await prisma.sale.groupBy({
+    by: ["productId"],
+    where: { productId: { in: products.map((p) => p.id) } },
+    _sum: { quantity: true },
+  });
+  const salesByProduct = new Map(salesAgg.map((s) => [s.productId, s._sum.quantity ?? 0]));
+
+  return products.map((p) => ({ ...p, salesCount: salesByProduct.get(p.id) ?? 0 }));
 }
 
 export async function getProduct(id: string) {

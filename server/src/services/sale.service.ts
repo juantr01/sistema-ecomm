@@ -53,7 +53,7 @@ export async function createSale(input: CreateSaleInput) {
       );
     }
 
-    const unitCostAtSale = Number(product.costPrice);
+    const unitCostAtSale = input.unitCost;
     const profit = input.totalAmount - unitCostAtSale * input.quantity;
 
     const sale = await tx.sale.create({

@@ -19,6 +19,7 @@ export function useSales(filters: SaleFilters = {}) {
 export interface CreateSaleInput {
   productId: string;
   quantity: number;
+  unitCost: number;
   totalAmount: number;
   saleDate?: string;
 }
