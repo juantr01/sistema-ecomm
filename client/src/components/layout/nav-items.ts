@@ -20,8 +20,8 @@ export interface NavItem {
 
 export const NAV_ITEMS: NavItem[] = [
   { to: "/", label: "Dashboard", icon: LayoutDashboard, end: true },
-  { to: "/produtos", label: "Produtos", icon: Package },
-  { to: "/estoque", label: "Estoque", icon: Boxes },
+  { to: "/produtos", label: "Produtos da Loja", icon: Package },
+  { to: "/estoque", label: "Estoque Próprio", icon: Boxes },
   { to: "/compras", label: "Compras", icon: ShoppingCart },
   { to: "/fornecedores", label: "Fornecedores", icon: Truck },
   { to: "/vendas", label: "Vendas", icon: Wallet },

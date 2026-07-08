@@ -88,7 +88,7 @@ export async function getExpensesBySupplier(query: RangeQuery) {
 
 export async function getLowStock() {
   const products = await prisma.product.findMany({
-    where: { active: true, trackStock: true },
+    where: { active: true, sourceType: "OWN_STOCK" },
     include: { category: true },
     orderBy: { name: "asc" },
   });

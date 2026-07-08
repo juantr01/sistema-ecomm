@@ -12,6 +12,7 @@ import purchasesRoutes from "./routes/purchases.routes";
 import salesRoutes from "./routes/sales.routes";
 import expensesRoutes from "./routes/expenses.routes";
 import stockRoutes from "./routes/stock.routes";
+import estampasRoutes from "./routes/estampas.routes";
 import dashboardRoutes from "./routes/dashboard.routes";
 import reportsRoutes from "./routes/reports.routes";
 
@@ -33,6 +34,7 @@ app.use("/api/purchases", purchasesRoutes);
 app.use("/api/sales", salesRoutes);
 app.use("/api/expenses", expensesRoutes);
 app.use("/api/stock", stockRoutes);
+app.use("/api/estampas", estampasRoutes);
 app.use("/api/dashboard", dashboardRoutes);
 app.use("/api/reports", reportsRoutes);
 

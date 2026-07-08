@@ -22,11 +22,12 @@ const schema = z.object({
   categoryId: z.string().optional(),
   color: z.string().optional(),
   size: z.string().optional(),
+  pattern: z.string().optional(),
   stockQuantity: z.coerce.number().int().min(0),
   minStock: z.coerce.number().int().min(0),
   costPrice: z.coerce.number().min(0),
   salePrice: z.coerce.number().min(0),
-  trackStock: z.boolean(),
+  sourceType: z.enum(["OWN_STOCK", "DROPSHIPPING"]),
   notes: z.string().optional(),
 });
 
@@ -60,7 +61,7 @@ export default function ProdutoForm() {
       minStock: 0,
       costPrice: 0,
       salePrice: 0,
-      trackStock: false,
+      sourceType: "DROPSHIPPING",
     },
   });
 
@@ -72,11 +73,12 @@ export default function ProdutoForm() {
         categoryId: product.categoryId ?? undefined,
         color: product.color ?? "",
         size: product.size ?? "",
+        pattern: product.pattern ?? "",
         stockQuantity: product.stockQuantity,
         minStock: product.minStock,
         costPrice: product.costPrice,
         salePrice: product.salePrice,
-        trackStock: product.trackStock,
+        sourceType: product.sourceType,
         notes: product.notes ?? "",
       });
       setPreview(product.imageUrl);
@@ -201,18 +203,28 @@ export default function ProdutoForm() {
                 <Input {...register("size")} />
               </div>
 
+              <div className="space-y-1.5">
+                <Label>Estampa</Label>
+                <Input {...register("pattern")} />
+              </div>
+
               <div className="col-span-1 flex items-center justify-between gap-3 rounded-md border p-3 sm:col-span-2">
                 <div className="space-y-0.5">
-                  <Label>Controlar estoque deste produto</Label>
+                  <Label>Este produto tem estoque físico próprio</Label>
                   <p className="text-xs text-muted-foreground">
-                    Ative só se você mantém estoque físico deste item. Produtos de dropshipping devem ficar desativados
-                    e não aparecem na aba Estoque.
+                    Ative só se você tem esse item fisicamente em mãos. Produtos de dropshipping ou sob encomenda devem
+                    ficar desativados e não aparecem na aba Estoque Próprio.
                   </p>
                 </div>
                 <Controller
                   control={control}
-                  name="trackStock"
-                  render={({ field }) => <Switch checked={field.value} onCheckedChange={field.onChange} />}
+                  name="sourceType"
+                  render={({ field }) => (
+                    <Switch
+                      checked={field.value === "OWN_STOCK"}
+                      onCheckedChange={(checked) => field.onChange(checked ? "OWN_STOCK" : "DROPSHIPPING")}
+                    />
+                  )}
                 />
               </div>
 

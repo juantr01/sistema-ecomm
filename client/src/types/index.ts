@@ -9,6 +9,18 @@ export interface Category {
   name: string;
 }
 
+export type ProductSourceType = "OWN_STOCK" | "DROPSHIPPING";
+
+export interface Estampa {
+  id: string;
+  name: string;
+  quantity: number;
+  minStock: number;
+  notes: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
 export interface Product {
   id: string;
   name: string;
@@ -17,11 +29,14 @@ export interface Product {
   category?: Category | null;
   color: string | null;
   size: string | null;
+  pattern: string | null;
   stockQuantity: number;
   minStock: number;
   costPrice: number;
   salePrice: number;
-  trackStock: boolean;
+  sourceType: ProductSourceType;
+  stockDisplayName: string | null;
+  stockSortOrder: number;
   notes: string | null;
   imageUrl: string | null;
   active: boolean;

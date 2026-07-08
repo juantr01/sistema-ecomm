@@ -23,7 +23,7 @@ export async function getDashboardSummary() {
     }),
     prisma.product.count({ where: { active: true } }),
     prisma.product.findMany({
-      where: { active: true, trackStock: true },
+      where: { active: true, sourceType: "OWN_STOCK" },
       select: { stockQuantity: true, minStock: true },
     }),
     prisma.sale.groupBy({

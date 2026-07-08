@@ -6,11 +6,12 @@ export const createProductSchema = z.object({
   categoryId: z.string().optional().nullable(),
   color: z.string().optional().nullable(),
   size: z.string().optional().nullable(),
+  pattern: z.string().optional().nullable(),
   stockQuantity: z.coerce.number().int().min(0).default(0),
   minStock: z.coerce.number().int().min(0).default(0),
   costPrice: z.coerce.number().min(0).default(0),
   salePrice: z.coerce.number().min(0).default(0),
-  trackStock: z.coerce.boolean().default(false),
+  sourceType: z.enum(["OWN_STOCK", "DROPSHIPPING"]).default("DROPSHIPPING"),
   notes: z.string().optional().nullable(),
 });
 

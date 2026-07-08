@@ -33,3 +33,35 @@ export function useAdjustStock() {
     },
   });
 }
+
+export function useUpdateStockDisplayName() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, stockDisplayName }: { id: string; stockDisplayName: string }) =>
+      api.post<Product>(`/stock/${id}/display-name`, { stockDisplayName }),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["stock"] }),
+  });
+}
+
+export function useReorderStock() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (order: string[]) => api.post<void>("/stock/reorder", { order }),
+    onMutate: async (order: string[]) => {
+      await queryClient.cancelQueries({ queryKey: ["stock", "levels"] });
+      const previous = queryClient.getQueryData<(Product & { lowStock: boolean })[]>(["stock", "levels"]);
+      if (previous) {
+        const byId = new Map(previous.map((p) => [p.id, p]));
+        const reordered = order.map((id) => byId.get(id)).filter((p): p is Product & { lowStock: boolean } => !!p);
+        queryClient.setQueryData(["stock", "levels"], reordered);
+      }
+      return { previous };
+    },
+    onError: (_err, _order, context) => {
+      if (context?.previous) {
+        queryClient.setQueryData(["stock", "levels"], context.previous);
+      }
+    },
+    onSettled: () => queryClient.invalidateQueries({ queryKey: ["stock"] }),
+  });
+}

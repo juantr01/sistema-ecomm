@@ -28,24 +28,44 @@ model Category {
   @@map("categories")
 }
 
+model Estampa {
+  id        String   @id @default(cuid())
+  name      String
+  quantity  Int      @default(0)
+  minStock  Int      @default(0)
+  notes     String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("estampas")
+}
+
+enum ProductSourceType {
+  OWN_STOCK
+  DROPSHIPPING
+}
+
 model Product {
-  id            String   @id @default(cuid())
-  name          String
-  sku           String   @unique
-  categoryId    String?
-  category      Category? @relation(fields: [categoryId], references: [id])
-  color         String?
-  size          String?
-  stockQuantity Int      @default(0)
-  minStock      Int      @default(0)
-  trackStock    Boolean  @default(false)
-  costPrice     Decimal  @default(0) @db.Decimal(12, 2)
-  salePrice     Decimal  @default(0) @db.Decimal(12, 2)
-  notes         String?
-  imageUrl      String?
-  active        Boolean  @default(true)
-  createdAt     DateTime @default(now())
-  updatedAt     DateTime @updatedAt
+  id               String            @id @default(cuid())
+  name             String
+  sku              String            @unique
+  categoryId       String?
+  category         Category?         @relation(fields: [categoryId], references: [id])
+  color            String?
+  size             String?
+  pattern          String?
+  stockQuantity    Int               @default(0)
+  minStock         Int               @default(0)
+  sourceType       ProductSourceType @default(DROPSHIPPING)
+  stockDisplayName String?
+  stockSortOrder   Int               @default(0)
+  costPrice        Decimal           @default(0) @db.Decimal(12, 2)
+  salePrice        Decimal           @default(0) @db.Decimal(12, 2)
+  notes            String?
+  imageUrl         String?
+  active           Boolean           @default(true)
+  createdAt        DateTime          @default(now())
+  updatedAt        DateTime          @updatedAt
 
   purchaseItems  PurchaseItem[]
   sales          Sale[]

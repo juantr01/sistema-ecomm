@@ -44,7 +44,7 @@ export default function ProdutosLista() {
   return (
     <div className="space-y-4">
       <div className="flex flex-wrap items-center justify-between gap-3">
-        <h1 className="text-xl font-semibold">Produtos</h1>
+        <h1 className="text-xl font-semibold">Produtos da Loja</h1>
         <Button onClick={() => navigate("/produtos/novo")}>
           <Plus className="h-4 w-4" /> Novo produto
         </Button>
@@ -97,6 +97,7 @@ export default function ProdutosLista() {
                 <TableHead>Produto</TableHead>
                 <TableHead>SKU</TableHead>
                 <TableHead>Categoria</TableHead>
+                <TableHead>Status</TableHead>
                 <TableHead>Estoque</TableHead>
                 <TableHead>Custo</TableHead>
                 <TableHead>Venda</TableHead>
@@ -121,9 +122,19 @@ export default function ProdutosLista() {
                       {product.name}
                       {product.color && <span className="text-muted-foreground"> · {product.color}</span>}
                       {product.size && <span className="text-muted-foreground"> · {product.size}</span>}
+                      {product.pattern && <span className="text-muted-foreground"> · {product.pattern}</span>}
                     </TableCell>
                     <TableCell className="text-muted-foreground">{product.sku}</TableCell>
                     <TableCell className="text-muted-foreground">{product.category?.name ?? "—"}</TableCell>
+                    <TableCell>
+                      {product.sourceType === "DROPSHIPPING" ? (
+                        <Badge variant="secondary">Drop</Badge>
+                      ) : product.stockQuantity > 0 ? (
+                        <Badge variant="success">Estoque Próprio</Badge>
+                      ) : (
+                        <Badge variant="destructive">Sem Estoque</Badge>
+                      )}
+                    </TableCell>
                     <TableCell>
                       <div className="flex items-center gap-2">
                         <span>{product.stockQuantity}</span>

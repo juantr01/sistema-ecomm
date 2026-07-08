@@ -24,3 +24,20 @@ export async function adjustHandler(req: Request, res: Response, next: NextFunct
     next(err);
   }
 }
+
+export async function updateDisplayNameHandler(req: Request, res: Response, next: NextFunction) {
+  try {
+    res.json(await stockService.updateStockDisplayName(req.params.id, req.body.stockDisplayName));
+  } catch (err) {
+    next(err);
+  }
+}
+
+export async function reorderHandler(req: Request, res: Response, next: NextFunction) {
+  try {
+    await stockService.reorderStock(req.body.order);
+    res.status(204).send();
+  } catch (err) {
+    next(err);
+  }
+}

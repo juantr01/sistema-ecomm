@@ -20,15 +20,29 @@ export async function recordStockMovement(
 
 export async function getStockLevels() {
   const products = await prisma.product.findMany({
-    where: { active: true, trackStock: true },
+    where: { active: true, sourceType: "OWN_STOCK" },
     include: { category: true },
-    orderBy: { name: "asc" },
+    orderBy: [{ stockSortOrder: "asc" }, { name: "asc" }],
   });
 
   return products.map((p) => ({
     ...p,
     lowStock: p.stockQuantity <= p.minStock,
   }));
+}
+
+export async function updateStockDisplayName(id: string, stockDisplayName: string) {
+  const product = await prisma.product.findUnique({ where: { id } });
+  if (!product) {
+    throw new AppError("Produto não encontrado", 404);
+  }
+  return prisma.product.update({ where: { id }, data: { stockDisplayName } });
+}
+
+export async function reorderStock(order: string[]) {
+  await prisma.$transaction(
+    order.map((id, index) => prisma.product.update({ where: { id }, data: { stockSortOrder: index } }))
+  );
 }
 
 export async function listMovements(productId?: string) {
