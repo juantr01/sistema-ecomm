@@ -73,7 +73,13 @@ export default function VendaForm() {
                     value={field.value}
                     onChange={field.onChange}
                     placeholder="Selecione o produto"
-                    options={(products ?? []).map((p) => ({ value: p.id, label: `${p.name} (${p.sku}) — estoque: ${p.stockQuantity}` }))}
+                    options={(products ?? []).map((p) => ({
+                      value: p.id,
+                      label:
+                        p.sourceType === "OWN_STOCK"
+                          ? `${p.name} (${p.sku}) — estoque: ${p.stockQuantity}`
+                          : `${p.name} (${p.sku}) — Drop`,
+                    }))}
                   />
                 )}
               />

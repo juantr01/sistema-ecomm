@@ -45,7 +45,8 @@ export async function createSale(input: CreateSaleInput) {
     if (!product) {
       throw new AppError("Produto não encontrado", 404);
     }
-    if (product.stockQuantity < input.quantity) {
+    const tracksStock = product.sourceType === "OWN_STOCK";
+    if (tracksStock && product.stockQuantity < input.quantity) {
       throw new AppError(
         `Estoque insuficiente: disponível ${product.stockQuantity}, solicitado ${input.quantity}`,
         422
@@ -67,17 +68,19 @@ export async function createSale(input: CreateSaleInput) {
       include: { product: true },
     });
 
-    await tx.product.update({
-      where: { id: input.productId },
-      data: { stockQuantity: product.stockQuantity - input.quantity },
-    });
+    if (tracksStock) {
+      await tx.product.update({
+        where: { id: input.productId },
+        data: { stockQuantity: product.stockQuantity - input.quantity },
+      });
 
-    await recordStockMovement(tx, {
-      productId: input.productId,
-      type: "SALE",
-      quantityDelta: -input.quantity,
-      referenceId: sale.id,
-    });
+      await recordStockMovement(tx, {
+        productId: input.productId,
+        type: "SALE",
+        quantityDelta: -input.quantity,
+        referenceId: sale.id,
+      });
+    }
 
     return sale;
   });
@@ -91,7 +94,7 @@ export async function deleteSale(id: string) {
 
   return prisma.$transaction(async (tx) => {
     const product = await tx.product.findUnique({ where: { id: sale.productId } });
-    if (product) {
+    if (product && product.sourceType === "OWN_STOCK") {
       await tx.product.update({
         where: { id: sale.productId },
         data: { stockQuantity: product.stockQuantity + sale.quantity },
