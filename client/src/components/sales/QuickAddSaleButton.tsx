@@ -38,12 +38,20 @@ export function QuickAddSaleButton() {
   } = useForm<FormValues>({ resolver: zodResolver(schema), defaultValues: { unitCost: 0 } });
 
   const selectedProductId = watch("productId");
+  const quantity = watch("quantity");
 
   useEffect(() => {
     if (!selectedProductId || dirtyFields.unitCost) return;
     const product = products?.find((p) => p.id === selectedProductId);
     if (product) setValue("unitCost", product.costPrice);
   }, [selectedProductId, products, dirtyFields.unitCost, setValue]);
+
+  useEffect(() => {
+    if (!selectedProductId || dirtyFields.totalAmount) return;
+    const product = products?.find((p) => p.id === selectedProductId);
+    const qty = Number(quantity) > 0 ? Number(quantity) : 1;
+    if (product) setValue("totalAmount", Number((product.netReceivedPrice * qty).toFixed(2)));
+  }, [selectedProductId, quantity, products, dirtyFields.totalAmount, setValue]);
 
   async function onSubmit(values: FormValues) {
     try {

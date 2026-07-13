@@ -29,6 +29,7 @@ export function useAdjustStock() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["stock"] });
       queryClient.invalidateQueries({ queryKey: ["products"] });
+      queryClient.invalidateQueries({ queryKey: ["productGroups"] });
       queryClient.invalidateQueries({ queryKey: ["dashboard"] });
     },
   });

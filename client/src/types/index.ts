@@ -21,12 +21,22 @@ export interface Estampa {
   updatedAt: string;
 }
 
+export interface ProductGroup {
+  id: string;
+  name: string;
+  sortOrder: number;
+  createdAt: string;
+  updatedAt: string;
+  products: (Product & { lowStock: boolean })[];
+}
+
 export interface Product {
   id: string;
   name: string;
   sku: string;
   categoryId: string | null;
   category?: Category | null;
+  groupId: string | null;
   color: string | null;
   size: string | null;
   pattern: string | null;
@@ -34,6 +44,7 @@ export interface Product {
   minStock: number;
   costPrice: number;
   salePrice: number;
+  netReceivedPrice: number;
   sourceType: ProductSourceType;
   stockDisplayName: string | null;
   stockSortOrder: number;

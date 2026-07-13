@@ -11,6 +11,7 @@ export const createProductSchema = z.object({
   minStock: z.coerce.number().int().min(0).default(0),
   costPrice: z.coerce.number().min(0).default(0),
   salePrice: z.coerce.number().min(0).default(0),
+  netReceivedPrice: z.coerce.number().min(0).default(0),
   sourceType: z.enum(["OWN_STOCK", "DROPSHIPPING"]).default("DROPSHIPPING"),
   notes: z.string().optional().nullable(),
 });

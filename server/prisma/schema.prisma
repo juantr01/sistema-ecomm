@@ -51,6 +51,8 @@ model Product {
   sku              String            @unique
   categoryId       String?
   category         Category?         @relation(fields: [categoryId], references: [id])
+  groupId          String?
+  group            ProductGroup?     @relation(fields: [groupId], references: [id], onDelete: SetNull)
   color            String?
   size             String?
   pattern          String?
@@ -61,6 +63,7 @@ model Product {
   stockSortOrder   Int               @default(0)
   costPrice        Decimal           @default(0) @db.Decimal(12, 2)
   salePrice        Decimal           @default(0) @db.Decimal(12, 2)
+  netReceivedPrice Decimal           @default(0) @db.Decimal(12, 2)
   notes            String?
   imageUrl         String?
   active           Boolean           @default(true)
@@ -73,6 +76,19 @@ model Product {
 
   @@map("products")
   @@index([categoryId])
+  @@index([groupId])
+}
+
+model ProductGroup {
+  id        String   @id @default(cuid())
+  name      String
+  sortOrder Int      @default(0)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  products Product[]
+
+  @@map("product_groups")
 }
 
 model Supplier {

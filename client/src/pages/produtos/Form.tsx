@@ -27,6 +27,7 @@ const schema = z.object({
   minStock: z.coerce.number().int().min(0),
   costPrice: z.coerce.number().min(0),
   salePrice: z.coerce.number().min(0),
+  netReceivedPrice: z.coerce.number().min(0),
   sourceType: z.enum(["OWN_STOCK", "DROPSHIPPING"]),
   notes: z.string().optional(),
 });
@@ -61,6 +62,7 @@ export default function ProdutoForm() {
       minStock: 0,
       costPrice: 0,
       salePrice: 0,
+      netReceivedPrice: 0,
       sourceType: "DROPSHIPPING",
     },
   });
@@ -78,6 +80,7 @@ export default function ProdutoForm() {
         minStock: product.minStock,
         costPrice: product.costPrice,
         salePrice: product.salePrice,
+        netReceivedPrice: product.netReceivedPrice,
         sourceType: product.sourceType,
         notes: product.notes ?? "",
       });
@@ -246,6 +249,14 @@ export default function ProdutoForm() {
               <div className="space-y-1.5">
                 <Label>Preço de venda (R$)</Label>
                 <Input type="number" min={0} step="0.01" {...register("salePrice")} />
+              </div>
+
+              <div className="space-y-1.5">
+                <Label>Valor líquido recebido da plataforma (R$)</Label>
+                <Input type="number" min={0} step="0.01" {...register("netReceivedPrice")} />
+                <p className="text-xs text-muted-foreground">
+                  Valor que cai na conta após as taxas da plataforma. Usado para preencher a venda automaticamente.
+                </p>
               </div>
 
               <div className="col-span-1 space-y-1.5 sm:col-span-2">

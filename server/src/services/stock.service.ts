@@ -20,7 +20,7 @@ export async function recordStockMovement(
 
 export async function getStockLevels() {
   const products = await prisma.product.findMany({
-    where: { active: true, sourceType: "OWN_STOCK" },
+    where: { active: true, sourceType: "OWN_STOCK", groupId: null },
     include: { category: true },
     orderBy: [{ stockSortOrder: "asc" }, { name: "asc" }],
   });

@@ -19,12 +19,20 @@ import { SearchInput } from "@/components/shared/SearchInput";
 import { EmptyState } from "@/components/shared/EmptyState";
 import { ConfirmDialog } from "@/components/shared/ConfirmDialog";
 import { useStockLevels, useStockMovements, useAdjustStock, useUpdateStockDisplayName, useReorderStock } from "@/hooks/useStock";
+import {
+  useProductGroups,
+  useCreateProductGroup,
+  useRenameProductGroup,
+  useDeleteProductGroup,
+  useAddVariations,
+  useRemoveVariation,
+} from "@/hooks/useProductGroups";
 import { useEstampas, useCreateEstampa, useUpdateEstampa, useDeleteEstampa, type EstampaWithStatus } from "@/hooks/useEstampas";
 import { formatDateTime } from "@/lib/format";
 import { toast } from "@/stores/toastStore";
 import { ApiError } from "@/lib/api";
 import { cn } from "@/lib/utils";
-import { Product } from "@/types";
+import { Product, ProductGroup } from "@/types";
 
 const MOVEMENT_LABELS: Record<string, string> = {
   PURCHASE: "Compra",
@@ -148,14 +156,231 @@ function SortableStockRow({ product, dragDisabled }: { product: StockLevel; drag
   );
 }
 
+function GroupCard({ group, onAdjust }: { group: ProductGroup; onAdjust: (productId: string) => void }) {
+  const [nameEditing, setNameEditing] = useState(false);
+  const [nameValue, setNameValue] = useState(group.name);
+  const [variationsOpen, setVariationsOpen] = useState(false);
+  const [sizesInput, setSizesInput] = useState("");
+  const [deleteOpen, setDeleteOpen] = useState(false);
+  const [removeVariationId, setRemoveVariationId] = useState<string | null>(null);
+
+  const renameGroup = useRenameProductGroup();
+  const deleteGroup = useDeleteProductGroup();
+  const addVariations = useAddVariations();
+  const removeVariation = useRemoveVariation();
+
+  function cancelNameEdit() {
+    setNameValue(group.name);
+    setNameEditing(false);
+  }
+
+  async function saveName() {
+    const trimmed = nameValue.trim();
+    if (!trimmed || trimmed === group.name) {
+      cancelNameEdit();
+      return;
+    }
+    try {
+      await renameGroup.mutateAsync({ id: group.id, name: trimmed });
+      setNameEditing(false);
+    } catch {
+      toast({ title: "Não foi possível renomear o grupo", variant: "destructive" });
+    }
+  }
+
+  async function handleAddVariations() {
+    const sizes = sizesInput
+      .split(",")
+      .map((s) => s.trim())
+      .filter(Boolean);
+    if (sizes.length === 0) return;
+    try {
+      await addVariations.mutateAsync({ groupId: group.id, sizes });
+      toast({ title: "Variações adicionadas", variant: "success" });
+      setSizesInput("");
+      setVariationsOpen(false);
+    } catch (err) {
+      toast({
+        title: "Não foi possível adicionar as variações",
+        description: err instanceof ApiError ? err.message : undefined,
+        variant: "destructive",
+      });
+    }
+  }
+
+  async function handleDeleteGroup() {
+    try {
+      await deleteGroup.mutateAsync(group.id);
+      toast({ title: "Grupo removido", variant: "success" });
+    } catch {
+      toast({ title: "Não foi possível remover o grupo", variant: "destructive" });
+    } finally {
+      setDeleteOpen(false);
+    }
+  }
+
+  async function handleRemoveVariation() {
+    if (!removeVariationId) return;
+    try {
+      await removeVariation.mutateAsync(removeVariationId);
+      toast({ title: "Variação removida", variant: "success" });
+    } catch {
+      toast({ title: "Não foi possível remover a variação", variant: "destructive" });
+    } finally {
+      setRemoveVariationId(null);
+    }
+  }
+
+  return (
+    <div className="rounded-lg border bg-card">
+      <div className="flex flex-wrap items-center justify-between gap-2 border-b p-3">
+        {nameEditing ? (
+          <div className="flex items-center gap-1">
+            <Input
+              autoFocus
+              value={nameValue}
+              onChange={(e) => setNameValue(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === "Enter") saveName();
+                if (e.key === "Escape") cancelNameEdit();
+              }}
+              className="h-8"
+            />
+            <Button type="button" variant="ghost" size="icon" className="h-8 w-8 shrink-0" onClick={saveName}>
+              <Check className="h-3.5 w-3.5" />
+            </Button>
+            <Button type="button" variant="ghost" size="icon" className="h-8 w-8 shrink-0" onClick={cancelNameEdit}>
+              <X className="h-3.5 w-3.5" />
+            </Button>
+          </div>
+        ) : (
+          <button
+            type="button"
+            className="group flex items-center gap-1.5 text-left font-semibold"
+            onClick={() => setNameEditing(true)}
+          >
+            {group.name}
+            <Pencil className="h-3.5 w-3.5 shrink-0 text-muted-foreground opacity-0 transition-opacity group-hover:opacity-100" />
+            <span className="text-xs font-normal text-muted-foreground">
+              ({group.products.length} {group.products.length === 1 ? "variação" : "variações"})
+            </span>
+          </button>
+        )}
+        <div className="flex gap-1.5">
+          <Button variant="outline" size="sm" onClick={() => setVariationsOpen(true)}>
+            <Plus className="h-4 w-4" /> Adicionar variações
+          </Button>
+          <Button variant="ghost" size="icon" onClick={() => setDeleteOpen(true)}>
+            <Trash2 className="h-4 w-4" />
+          </Button>
+        </div>
+      </div>
+
+      {group.products.length === 0 ? (
+        <div className="p-4 text-sm text-muted-foreground">
+          Nenhuma variação ainda. Clique em "Adicionar variações" para criar tamanhos, ex: P, M, G, GG.
+        </div>
+      ) : (
+        <Table>
+          <TableHeader>
+            <TableRow>
+              <TableHead>Tamanho</TableHead>
+              <TableHead>SKU</TableHead>
+              <TableHead>Estoque</TableHead>
+              <TableHead>Mínimo</TableHead>
+              <TableHead>Status</TableHead>
+              <TableHead className="text-right">Ações</TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {group.products.map((p) => (
+              <TableRow key={p.id}>
+                <TableCell className="font-medium">{p.size ?? "—"}</TableCell>
+                <TableCell className="text-muted-foreground">{p.sku}</TableCell>
+                <TableCell>{p.stockQuantity}</TableCell>
+                <TableCell className="text-muted-foreground">{p.minStock}</TableCell>
+                <TableCell>
+                  {p.lowStock ? <Badge variant="destructive">Estoque baixo</Badge> : <Badge variant="success">OK</Badge>}
+                </TableCell>
+                <TableCell className="text-right">
+                  <div className="flex justify-end gap-1">
+                    <Button variant="ghost" size="icon" onClick={() => onAdjust(p.id)}>
+                      <SlidersHorizontal className="h-4 w-4" />
+                    </Button>
+                    <Button variant="ghost" size="icon" onClick={() => setRemoveVariationId(p.id)}>
+                      <Trash2 className="h-4 w-4" />
+                    </Button>
+                  </div>
+                </TableCell>
+              </TableRow>
+            ))}
+          </TableBody>
+        </Table>
+      )}
+
+      <Dialog open={variationsOpen} onOpenChange={setVariationsOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Adicionar variações — {group.name}</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-1.5">
+            <Label>Tamanhos (separe por vírgula)</Label>
+            <Input
+              autoFocus
+              placeholder="Ex: P, M, G, GG"
+              value={sizesInput}
+              onChange={(e) => setSizesInput(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === "Enter") handleAddVariations();
+              }}
+            />
+          </div>
+          <DialogFooter>
+            <Button type="button" variant="outline" onClick={() => setVariationsOpen(false)}>
+              Cancelar
+            </Button>
+            <Button type="button" onClick={handleAddVariations} disabled={addVariations.isPending}>
+              {addVariations.isPending ? "Salvando..." : "Adicionar"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <ConfirmDialog
+        open={deleteOpen}
+        onOpenChange={setDeleteOpen}
+        title="Remover grupo?"
+        description="As variações já criadas continuam existindo, mas deixam de fazer parte deste grupo."
+        confirmLabel="Remover"
+        onConfirm={handleDeleteGroup}
+        loading={deleteGroup.isPending}
+      />
+
+      <ConfirmDialog
+        open={!!removeVariationId}
+        onOpenChange={(open) => !open && setRemoveVariationId(null)}
+        title="Remover variação?"
+        description="Esta variação deixará de aparecer no estoque e nas vendas."
+        confirmLabel="Remover"
+        onConfirm={handleRemoveVariation}
+        loading={removeVariation.isPending}
+      />
+    </div>
+  );
+}
+
 function RoupaSection() {
   const [search, setSearch] = useState("");
   const [adjustOpen, setAdjustOpen] = useState(false);
+  const [groupFormOpen, setGroupFormOpen] = useState(false);
+  const [groupName, setGroupName] = useState("");
 
   const { data: levels, isLoading: loadingLevels } = useStockLevels();
   const { data: movements, isLoading: loadingMovements } = useStockMovements();
+  const { data: groups, isLoading: loadingGroups } = useProductGroups();
   const adjustStock = useAdjustStock();
   const reorderStock = useReorderStock();
+  const createGroup = useCreateProductGroup();
 
   const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 5 } }));
 
@@ -166,6 +391,8 @@ function RoupaSection() {
     reset,
     formState: { errors },
   } = useForm<AdjustmentValues>({ resolver: zodResolver(adjustmentSchema) });
+
+  const allStockProducts = [...(levels ?? []), ...(groups ?? []).flatMap((g) => g.products)];
 
   const q = search.trim().toLowerCase();
   const searchActive = q.length > 0;
@@ -190,6 +417,11 @@ function RoupaSection() {
     reorderStock.mutate(reordered.map((p) => p.id));
   }
 
+  function openAdjust(productId?: string) {
+    reset({ productId: productId ?? "", quantityDelta: undefined, reason: "" } as unknown as AdjustmentValues);
+    setAdjustOpen(true);
+  }
+
   async function onAdjust(values: AdjustmentValues) {
     try {
       await adjustStock.mutateAsync(values);
@@ -205,10 +437,30 @@ function RoupaSection() {
     }
   }
 
+  async function handleCreateGroup() {
+    const trimmed = groupName.trim();
+    if (!trimmed) return;
+    try {
+      await createGroup.mutateAsync(trimmed);
+      toast({ title: "Grupo criado", variant: "success" });
+      setGroupName("");
+      setGroupFormOpen(false);
+    } catch (err) {
+      toast({
+        title: "Não foi possível criar o grupo",
+        description: err instanceof ApiError ? err.message : undefined,
+        variant: "destructive",
+      });
+    }
+  }
+
   return (
     <div className="space-y-3">
-      <div className="flex justify-end">
-        <Button onClick={() => setAdjustOpen(true)}>
+      <div className="flex justify-end gap-2">
+        <Button variant="outline" onClick={() => setGroupFormOpen(true)}>
+          <Plus className="h-4 w-4" /> Novo grupo
+        </Button>
+        <Button onClick={() => openAdjust()}>
           <SlidersHorizontal className="h-4 w-4" /> Ajustar estoque
         </Button>
       </div>
@@ -219,52 +471,78 @@ function RoupaSection() {
           <TabsTrigger value="movimentacoes">Movimentações</TabsTrigger>
         </TabsList>
 
-        <TabsContent value="niveis" className="space-y-3">
-          <div className="flex flex-col gap-1.5 sm:flex-row sm:items-center sm:justify-between">
-            <SearchInput
-              value={search}
-              onChange={setSearch}
-              placeholder="Buscar por nome, SKU, cor, tamanho ou estampa..."
-              className="w-full sm:w-72"
-            />
-            {searchActive && (
-              <p className="text-xs text-muted-foreground">Limpe a busca para reordenar arrastando.</p>
-            )}
-          </div>
-          <div className="rounded-lg border bg-card">
-            {loadingLevels ? (
-              <div className="p-6 text-sm text-muted-foreground">Carregando...</div>
-            ) : filteredLevels.length === 0 ? (
+        <TabsContent value="niveis" className="space-y-6">
+          <div className="space-y-3">
+            <h2 className="text-sm font-semibold text-muted-foreground">Grupos de produtos</h2>
+            {loadingGroups ? (
+              <div className="rounded-lg border bg-card p-6 text-sm text-muted-foreground">Carregando...</div>
+            ) : !groups || groups.length === 0 ? (
               <EmptyState
-                title="Nenhum produto com estoque próprio"
-                description='Ative "Este produto tem estoque físico próprio" na edição do produto para ele aparecer aqui. Produtos de dropshipping ficam de fora por padrão.'
+                title="Nenhum grupo criado"
+                description='Crie um grupo (ex: "Moletom Canguru Preto") e adicione variações de tamanho dentro dele.'
+                action={
+                  <Button onClick={() => setGroupFormOpen(true)}>
+                    <Plus className="h-4 w-4" /> Novo grupo
+                  </Button>
+                }
               />
             ) : (
-              <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead></TableHead>
-                      <TableHead>Produto</TableHead>
-                      <TableHead>SKU</TableHead>
-                      <TableHead>Cor</TableHead>
-                      <TableHead>Tamanho</TableHead>
-                      <TableHead>Estampa</TableHead>
-                      <TableHead>Estoque</TableHead>
-                      <TableHead>Mínimo</TableHead>
-                      <TableHead>Status</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    <SortableContext items={filteredLevels.map((p) => p.id)} strategy={verticalListSortingStrategy}>
-                      {filteredLevels.map((p) => (
-                        <SortableStockRow key={p.id} product={p} dragDisabled={searchActive} />
-                      ))}
-                    </SortableContext>
-                  </TableBody>
-                </Table>
-              </DndContext>
+              <div className="space-y-3">
+                {groups.map((g) => (
+                  <GroupCard key={g.id} group={g} onAdjust={openAdjust} />
+                ))}
+              </div>
             )}
+          </div>
+
+          <div className="space-y-3">
+            <h2 className="text-sm font-semibold text-muted-foreground">Produtos avulsos</h2>
+            <div className="flex flex-col gap-1.5 sm:flex-row sm:items-center sm:justify-between">
+              <SearchInput
+                value={search}
+                onChange={setSearch}
+                placeholder="Buscar por nome, SKU, cor, tamanho ou estampa..."
+                className="w-full sm:w-72"
+              />
+              {searchActive && (
+                <p className="text-xs text-muted-foreground">Limpe a busca para reordenar arrastando.</p>
+              )}
+            </div>
+            <div className="rounded-lg border bg-card">
+              {loadingLevels ? (
+                <div className="p-6 text-sm text-muted-foreground">Carregando...</div>
+              ) : filteredLevels.length === 0 ? (
+                <EmptyState
+                  title="Nenhum produto avulso com estoque próprio"
+                  description='Ative "Este produto tem estoque físico próprio" na edição do produto para ele aparecer aqui, ou organize variações dentro de um grupo acima.'
+                />
+              ) : (
+                <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead></TableHead>
+                        <TableHead>Produto</TableHead>
+                        <TableHead>SKU</TableHead>
+                        <TableHead>Cor</TableHead>
+                        <TableHead>Tamanho</TableHead>
+                        <TableHead>Estampa</TableHead>
+                        <TableHead>Estoque</TableHead>
+                        <TableHead>Mínimo</TableHead>
+                        <TableHead>Status</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      <SortableContext items={filteredLevels.map((p) => p.id)} strategy={verticalListSortingStrategy}>
+                        {filteredLevels.map((p) => (
+                          <SortableStockRow key={p.id} product={p} dragDisabled={searchActive} />
+                        ))}
+                      </SortableContext>
+                    </TableBody>
+                  </Table>
+                </DndContext>
+              )}
+            </div>
           </div>
         </TabsContent>
 
@@ -320,7 +598,7 @@ function RoupaSection() {
                     value={field.value}
                     onChange={field.onChange}
                     placeholder="Selecione o produto"
-                    options={(levels ?? []).map((p) => ({
+                    options={allStockProducts.map((p) => ({
                       value: p.id,
                       label: `${p.stockDisplayName ?? p.name} (${p.sku})`,
                     }))}
@@ -348,6 +626,34 @@ function RoupaSection() {
               </Button>
             </DialogFooter>
           </form>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={groupFormOpen} onOpenChange={setGroupFormOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Novo grupo</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-1.5">
+            <Label>Nome do grupo</Label>
+            <Input
+              autoFocus
+              placeholder="Ex: Moletom Canguru Preto"
+              value={groupName}
+              onChange={(e) => setGroupName(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === "Enter") handleCreateGroup();
+              }}
+            />
+          </div>
+          <DialogFooter>
+            <Button type="button" variant="outline" onClick={() => setGroupFormOpen(false)}>
+              Cancelar
+            </Button>
+            <Button type="button" onClick={handleCreateGroup} disabled={createGroup.isPending}>
+              {createGroup.isPending ? "Salvando..." : "Criar grupo"}
+            </Button>
+          </DialogFooter>
         </DialogContent>
       </Dialog>
     </div>
