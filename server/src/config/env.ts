@@ -21,6 +21,10 @@ export const env = {
   r2SecretAccessKey: required("R2_SECRET_ACCESS_KEY"),
   r2BucketName: required("R2_BUCKET_NAME"),
   r2PublicUrl: required("R2_PUBLIC_URL"),
+  shopeePartnerId: required("SHOPEE_PARTNER_ID"),
+  shopeePartnerKey: required("SHOPEE_PARTNER_KEY"),
+  shopeeRedirectUrl: process.env.SHOPEE_REDIRECT_URL ?? `${process.env.CLIENT_URL ?? "http://localhost:5173"}/shopee/callback`,
+  shopeeBaseUrl: process.env.SHOPEE_BASE_URL ?? "https://partner.test-stable.shopeemobile.com",
 };
 
 export const isProduction = env.nodeEnv === "production";

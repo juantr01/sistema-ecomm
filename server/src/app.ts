@@ -16,6 +16,7 @@ import productGroupsRoutes from "./routes/productGroups.routes";
 import estampasRoutes from "./routes/estampas.routes";
 import dashboardRoutes from "./routes/dashboard.routes";
 import reportsRoutes from "./routes/reports.routes";
+import shopeeRoutes from "./routes/shopee.routes";
 
 export const app = express();
 
@@ -39,6 +40,7 @@ app.use("/api/product-groups", productGroupsRoutes);
 app.use("/api/estampas", estampasRoutes);
 app.use("/api/dashboard", dashboardRoutes);
 app.use("/api/reports", reportsRoutes);
+app.use("/api/shopee", shopeeRoutes);
 
 app.use(notFoundHandler);
 app.use(errorHandler);

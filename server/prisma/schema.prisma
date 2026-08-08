@@ -67,6 +67,8 @@ model Product {
   notes            String?
   imageUrl         String?
   active           Boolean           @default(true)
+  shopeeItemId     String?           @unique
+  shopeeModelId    String?
   createdAt        DateTime          @default(now())
   updatedAt        DateTime          @updatedAt
 
@@ -149,12 +151,30 @@ model Sale {
   unitCostAtSale Decimal    @db.Decimal(12, 2)
   profit         Decimal    @db.Decimal(12, 2)
   origin         SaleOrigin @default(MANUAL)
+  shopeeOrderSn  String?
   saleDate       DateTime
   createdAt      DateTime   @default(now())
 
   @@map("sales")
   @@index([productId])
   @@index([saleDate])
+  @@unique([shopeeOrderSn, productId])
+}
+
+model ShopeeShop {
+  id                    String    @id @default(cuid())
+  shopId                String    @unique
+  shopName              String?
+  accessToken           String
+  refreshToken          String
+  accessTokenExpiresAt  DateTime
+  refreshTokenExpiresAt DateTime
+  lastProductSyncAt     DateTime?
+  lastOrderSyncAt       DateTime?
+  createdAt             DateTime  @default(now())
+  updatedAt             DateTime  @updatedAt
+
+  @@map("shopee_shops")
 }
 
 enum ExpenseCategory {

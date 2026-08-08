@@ -8,8 +8,10 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { ConfirmDialog } from "@/components/shared/ConfirmDialog";
+import { formatDateTime } from "@/lib/format";
 import { useCategories, useCreateCategory, useDeleteCategory } from "@/hooks/useCategories";
 import { useChangePassword } from "@/hooks/useAuth";
+import { useShopeeStatus, useConnectShopee, useShopeeSync } from "@/hooks/useShopee";
 import { toast } from "@/stores/toastStore";
 import { ApiError } from "@/lib/api";
 
@@ -34,6 +36,9 @@ export default function Configuracoes() {
   const createCategory = useCreateCategory();
   const deleteCategory = useDeleteCategory();
   const changePassword = useChangePassword();
+  const { data: shopeeStatus } = useShopeeStatus();
+  const connectShopee = useConnectShopee();
+  const shopeeSync = useShopeeSync();
 
   const {
     register,
@@ -73,6 +78,23 @@ export default function Configuracoes() {
     }
   }
 
+  async function handleSyncShopee() {
+    try {
+      const result = await shopeeSync.mutateAsync();
+      toast({
+        title: "Sincronização concluída",
+        description: `Produtos: ${result.products.created} novos, ${result.products.updated} atualizados. Vendas: ${result.orders.created} importadas.`,
+        variant: "success",
+      });
+    } catch (err) {
+      toast({
+        title: "Não foi possível sincronizar com a Shopee",
+        description: err instanceof ApiError ? err.message : undefined,
+        variant: "destructive",
+      });
+    }
+  }
+
   async function onSubmitPassword(values: PasswordValues) {
     try {
       await changePassword.mutateAsync(values);
@@ -90,6 +112,43 @@ export default function Configuracoes() {
   return (
     <div className="mx-auto max-w-2xl space-y-4 md:space-y-6">
       <h1 className="text-xl font-semibold">Configurações</h1>
+
+      <Card>
+        <CardHeader>
+          <CardTitle>Integração Shopee</CardTitle>
+          <CardDescription>
+            {shopeeStatus?.connected
+              ? "Sincronize produtos e vendas da sua loja Shopee com o sistema."
+              : "Conecte sua loja Shopee para sincronizar produtos e vendas automaticamente."}
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-3">
+          {shopeeStatus?.connected ? (
+            <>
+              <div className="space-y-1 text-sm text-muted-foreground">
+                <p>
+                  Loja conectada: <span className="text-foreground">{shopeeStatus.shopName ?? shopeeStatus.shopId}</span>
+                </p>
+                <p>
+                  Última sincronização de produtos:{" "}
+                  {shopeeStatus.lastProductSyncAt ? formatDateTime(shopeeStatus.lastProductSyncAt) : "nunca"}
+                </p>
+                <p>
+                  Última sincronização de vendas:{" "}
+                  {shopeeStatus.lastOrderSyncAt ? formatDateTime(shopeeStatus.lastOrderSyncAt) : "nunca"}
+                </p>
+              </div>
+              <Button type="button" onClick={handleSyncShopee} disabled={shopeeSync.isPending}>
+                {shopeeSync.isPending ? "Sincronizando..." : "Sincronizar com Shopee"}
+              </Button>
+            </>
+          ) : (
+            <Button type="button" onClick={() => connectShopee.mutate()} disabled={connectShopee.isPending}>
+              {connectShopee.isPending ? "Conectando..." : "Conectar com Shopee"}
+            </Button>
+          )}
+        </CardContent>
+      </Card>
 
       <Card>
         <CardHeader>
