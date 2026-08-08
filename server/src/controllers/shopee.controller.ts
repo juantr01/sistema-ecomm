@@ -1,6 +1,7 @@
 import { Request, Response, NextFunction } from "express";
 import * as shopeeService from "../services/shopee.service";
 import { env } from "../config/env";
+import { signShopeeRequest } from "../utils/shopeeSign";
 
 export function debugSignHandler(_req: Request, res: Response) {
   res.json({
@@ -12,6 +13,7 @@ export function debugSignHandler(_req: Request, res: Response) {
     partnerKeyHasQuotes: env.shopeePartnerKey.includes('"') || env.shopeePartnerKey.includes("'"),
     baseUrl: env.shopeeBaseUrl,
     redirectUrl: env.shopeeRedirectUrl,
+    fixedSignForComparison: signShopeeRequest({ path: "/api/v2/shop/auth_partner", timestamp: 1700000000 }),
   });
 }
 
