@@ -11,7 +11,13 @@ async function shopeeFetch<T = any>(url: string, options?: RequestInit): Promise
     ...options,
     headers: { "Content-Type": "application/json", ...options?.headers },
   });
-  const data = (await res.json()) as any;
+  const text = await res.text();
+  let data: any;
+  try {
+    data = JSON.parse(text);
+  } catch {
+    throw new AppError(`Resposta inválida da API da Shopee (HTTP ${res.status})`, 502);
+  }
   if (data?.error) {
     throw new AppError(`Erro na API da Shopee (${data.error}): ${data.message ?? "sem detalhes"}`, 502);
   }
@@ -115,9 +121,10 @@ export async function syncProducts() {
       { offset, page_size: pageSize, item_status: "NORMAL" },
       { accessToken, shopId: shop.shopId }
     );
-    const data = await shopeeFetch<{ response: { item: { item_id: number }[]; has_next_page: boolean; next_offset: number } }>(url);
-    itemIds.push(...data.response.item.map((i) => i.item_id));
-    if (!data.response.has_next_page) break;
+    // A Shopee omite `item` quando a loja não tem produtos
+    const data = await shopeeFetch<{ response?: { item?: { item_id: number }[]; has_next_page?: boolean; next_offset: number } }>(url);
+    itemIds.push(...(data.response?.item ?? []).map((i) => i.item_id));
+    if (!data.response?.has_next_page) break;
     offset = data.response.next_offset;
   }
 
@@ -131,9 +138,9 @@ export async function syncProducts() {
       { item_id_list: batch.join(",") },
       { accessToken, shopId: shop.shopId }
     );
-    const data = await shopeeFetch<{ response: { item_list: ShopeeItemBaseInfo[] } }>(url);
+    const data = await shopeeFetch<{ response?: { item_list?: ShopeeItemBaseInfo[] } }>(url);
 
-    for (const item of data.response.item_list) {
+    for (const item of data.response?.item_list ?? []) {
       const shopeeItemId = String(item.item_id);
       const price = item.price_info?.[0]?.current_price ?? item.price_info?.[0]?.original_price ?? 0;
       const sku = item.item_sku?.trim() || `shopee-${shopeeItemId}`;
@@ -191,9 +198,9 @@ async function fetchOrderSnsInWindow(accessToken: string, shopId: string, timeFr
       },
       { accessToken, shopId }
     );
-    const data = await shopeeFetch<{ response: { order_list: { order_sn: string }[]; next_cursor: string; more: boolean } }>(url);
-    orderSns.push(...data.response.order_list.map((o) => o.order_sn));
-    if (!data.response.more) break;
+    const data = await shopeeFetch<{ response?: { order_list?: { order_sn: string }[]; next_cursor: string; more?: boolean } }>(url);
+    orderSns.push(...(data.response?.order_list ?? []).map((o) => o.order_sn));
+    if (!data.response?.more) break;
     cursor = data.response.next_cursor;
   }
   return orderSns;
@@ -236,15 +243,16 @@ export async function syncOrders() {
       { order_sn_list: batch.join(","), response_optional_fields: "item_list,total_amount" },
       { accessToken, shopId: shop.shopId }
     );
-    const data = await shopeeFetch<{ response: { order_list: ShopeeOrderDetail[] } }>(url);
+    const data = await shopeeFetch<{ response?: { order_list?: ShopeeOrderDetail[] } }>(url);
 
-    for (const order of data.response.order_list) {
+    for (const order of data.response?.order_list ?? []) {
       // O valor bruto do pedido inclui taxas da plataforma; usamos o repasse líquido (escrow)
       // para refletir o que realmente cai na conta, mesma regra das vendas manuais.
       const netAmount = await fetchOrderNetAmount(accessToken, shop.shopId, order.order_sn, order.total_amount);
-      const grossTotal = order.item_list.reduce((sum, it) => sum + it.model_discounted_price * it.model_quantity_purchased, 0) || order.total_amount;
+      const itemList = order.item_list ?? [];
+      const grossTotal = itemList.reduce((sum, it) => sum + it.model_discounted_price * it.model_quantity_purchased, 0) || order.total_amount;
 
-      for (const line of order.item_list) {
+      for (const line of itemList) {
         const product = await prisma.product.findUnique({ where: { shopeeItemId: String(line.item_id) } });
         if (!product) {
           skipped++;
