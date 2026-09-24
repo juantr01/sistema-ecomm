@@ -24,7 +24,7 @@ export const env = {
   shopeePartnerId: required("SHOPEE_PARTNER_ID"),
   shopeePartnerKey: required("SHOPEE_PARTNER_KEY"),
   shopeeRedirectUrl: process.env.SHOPEE_REDIRECT_URL ?? `${process.env.CLIENT_URL ?? "http://localhost:5173"}/shopee/callback`,
-  shopeeBaseUrl: process.env.SHOPEE_BASE_URL ?? "https://partner.test-stable.shopeemobile.com",
+  shopeeBaseUrl: process.env.SHOPEE_BASE_URL ?? "https://openplatform.sandbox.test-stable.shopee.sg",
 };
 
 export const isProduction = env.nodeEnv === "production";
