@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { localDate } from "./localDate";
 
 export const expenseCategoryEnum = z.enum([
   "EMBALAGEM",
@@ -13,7 +14,7 @@ export const createExpenseSchema = z.object({
   description: z.string().min(1, "Descrição obrigatória"),
   category: expenseCategoryEnum,
   amount: z.coerce.number().positive("Valor deve ser maior que zero"),
-  date: z.coerce.date(),
+  date: localDate(),
 });
 
 export const updateExpenseSchema = createExpenseSchema.partial();

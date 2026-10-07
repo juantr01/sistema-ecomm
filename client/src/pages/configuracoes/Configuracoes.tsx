@@ -11,7 +11,8 @@ import { ConfirmDialog } from "@/components/shared/ConfirmDialog";
 import { formatDateTime } from "@/lib/format";
 import { useCategories, useCreateCategory, useDeleteCategory } from "@/hooks/useCategories";
 import { useChangePassword } from "@/hooks/useAuth";
-import { useShopeeStatus, useConnectShopee, useShopeeSync, useDisconnectShopee } from "@/hooks/useShopee";
+import { useShopeeStatus, useConnectShopee, useDisconnectShopee } from "@/hooks/useShopee";
+import { ShopeeSyncButton } from "@/components/shopee/ShopeeSyncButton";
 import { toast } from "@/stores/toastStore";
 import { ApiError } from "@/lib/api";
 
@@ -39,7 +40,6 @@ export default function Configuracoes() {
   const changePassword = useChangePassword();
   const { data: shopeeStatus } = useShopeeStatus();
   const connectShopee = useConnectShopee();
-  const shopeeSync = useShopeeSync();
   const disconnectShopee = useDisconnectShopee();
 
   const {
@@ -77,23 +77,6 @@ export default function Configuracoes() {
       });
     } finally {
       setDeleteId(null);
-    }
-  }
-
-  async function handleSyncShopee() {
-    try {
-      const result = await shopeeSync.mutateAsync();
-      toast({
-        title: "Sincronização concluída",
-        description: `Produtos: ${result.products.created} novos, ${result.products.updated} atualizados. Vendas: ${result.orders.created} importadas, ${result.orders.updated} atualizadas, ${result.orders.removed} removidas (canceladas).${result.orders.skipped ? ` ${result.orders.skipped} itens sem produto sincronizado.` : ""}`,
-        variant: "success",
-      });
-    } catch (err) {
-      toast({
-        title: "Não foi possível sincronizar com a Shopee",
-        description: err instanceof ApiError ? err.message : undefined,
-        variant: "destructive",
-      });
     }
   }
 
@@ -156,9 +139,7 @@ export default function Configuracoes() {
                 </p>
               </div>
               <div className="flex flex-wrap gap-2">
-                <Button type="button" onClick={handleSyncShopee} disabled={shopeeSync.isPending}>
-                  {shopeeSync.isPending ? "Sincronizando..." : "Sincronizar com Shopee"}
-                </Button>
+                <ShopeeSyncButton />
                 <Button type="button" variant="outline" onClick={() => setConfirmDisconnect(true)}>
                   Desconectar
                 </Button>

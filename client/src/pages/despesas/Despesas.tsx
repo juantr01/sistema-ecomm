@@ -14,7 +14,7 @@ import { EmptyState } from "@/components/shared/EmptyState";
 import { ConfirmDialog } from "@/components/shared/ConfirmDialog";
 import { useExpenses, useCreateExpense, useDeleteExpense } from "@/hooks/useExpenses";
 import { EXPENSE_CATEGORY_LABELS, MANUAL_EXPENSE_CATEGORIES } from "@/lib/constants";
-import { formatCurrency, formatDate } from "@/lib/format";
+import { formatCurrency, formatDate, toInputDate } from "@/lib/format";
 import { toast } from "@/stores/toastStore";
 import { ApiError } from "@/lib/api";
 import { ExpenseCategory } from "@/types";
@@ -47,14 +47,14 @@ export default function Despesas() {
     formState: { errors },
   } = useForm<FormValues>({
     resolver: zodResolver(schema),
-    defaultValues: { date: new Date().toISOString().slice(0, 10) },
+    defaultValues: { date: toInputDate(new Date()) },
   });
 
   async function onSubmit(values: FormValues) {
     try {
       await createExpense.mutateAsync(values);
       toast({ title: "Despesa registrada", variant: "success" });
-      reset({ date: new Date().toISOString().slice(0, 10) } as any);
+      reset({ date: toInputDate(new Date()) } as any);
       setCreateOpen(false);
     } catch (err) {
       toast({

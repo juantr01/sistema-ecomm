@@ -171,6 +171,8 @@ export async function syncProducts() {
 
 interface ShopeeOrderLineItem {
   item_id: number;
+  item_name: string;
+  item_sku?: string;
   model_quantity_purchased: number;
   model_discounted_price: number;
 }
@@ -221,6 +223,20 @@ async function fetchOrderNetAmount(accessToken: string, shopId: string, orderSn:
   }
 }
 
+async function findOrCreateProductFromOrder(itemId: number, line: { name: string; sku?: string; unitPrice: number }) {
+  const shopeeItemId = String(itemId);
+  const sku = line.sku?.trim() || `shopee-${shopeeItemId}`;
+  const existing =
+    (await prisma.product.findUnique({ where: { shopeeItemId } })) ?? (await prisma.product.findUnique({ where: { sku } }));
+  if (existing) {
+    if (!existing.shopeeItemId) {
+      return prisma.product.update({ where: { id: existing.id }, data: { shopeeItemId } });
+    }
+    return existing;
+  }
+  return prisma.product.create({ data: { name: line.name, sku, salePrice: line.unitPrice, shopeeItemId } });
+}
+
 export async function syncOrders() {
   const shop = await requireConnectedShop();
   const accessToken = await getValidAccessToken(shop);
@@ -244,7 +260,8 @@ export async function syncOrders() {
   let created = 0;
   let updated = 0;
   let removed = 0;
-  let skipped = 0;
+  // Pedidos que a Shopee listou mas não viraram venda, com o motivo (para conferência)
+  const skipped: { orderSn: string; reason: string }[] = [];
 
   for (let i = 0; i < uniqueOrderSns.length; i += 50) {
     const batch = uniqueOrderSns.slice(i, i + 50);
@@ -256,7 +273,10 @@ export async function syncOrders() {
     const data = await shopeeFetch<{ response?: { order_list?: ShopeeOrderDetail[] } }>(url);
 
     for (const order of data.response?.order_list ?? []) {
-      if (IGNORED_ORDER_STATUSES.has(order.order_status)) continue;
+      if (IGNORED_ORDER_STATUSES.has(order.order_status)) {
+        skipped.push({ orderSn: order.order_sn, reason: "aguardando pagamento" });
+        continue;
+      }
 
       if (VOIDED_ORDER_STATUSES.has(order.order_status)) {
         const result = await prisma.sale.deleteMany({ where: { shopeeOrderSn: order.order_sn } });
@@ -272,20 +292,23 @@ export async function syncOrders() {
       const grossTotal = itemList.reduce((sum, it) => sum + it.model_discounted_price * it.model_quantity_purchased, 0) || order.total_amount;
 
       // Variações do mesmo anúncio viram uma única venda por produto (unique em shopeeOrderSn + productId)
-      const linesByItem = new Map<number, { quantity: number; gross: number }>();
+      const linesByItem = new Map<number, { quantity: number; gross: number; name: string; sku?: string; unitPrice: number }>();
       for (const line of itemList) {
-        const acc = linesByItem.get(line.item_id) ?? { quantity: 0, gross: 0 };
+        const acc = linesByItem.get(line.item_id) ?? {
+          quantity: 0,
+          gross: 0,
+          name: line.item_name,
+          sku: line.item_sku,
+          unitPrice: line.model_discounted_price,
+        };
         acc.quantity += line.model_quantity_purchased;
         acc.gross += line.model_discounted_price * line.model_quantity_purchased;
         linesByItem.set(line.item_id, acc);
       }
 
       for (const [itemId, line] of linesByItem) {
-        const product = await prisma.product.findUnique({ where: { shopeeItemId: String(itemId) } });
-        if (!product) {
-          skipped++;
-          continue;
-        }
+        // Anúncios pausados/excluídos não vêm no sync de produtos; cria o produto a partir do pedido
+        const product = await findOrCreateProductFromOrder(itemId, line);
 
         const lineNet = grossTotal > 0 ? netAmount * (line.gross / grossTotal) : 0;
         const where = { shopeeOrderSn_productId: { shopeeOrderSn: order.order_sn, productId: product.id } };
@@ -322,7 +345,7 @@ export async function syncOrders() {
 
   await prisma.shopeeShop.update({ where: { shopId: shop.shopId }, data: { lastOrderSyncAt: new Date() } });
 
-  return { created, updated, removed, skipped };
+  return { found: uniqueOrderSns.length, created, updated, removed, skipped };
 }
 
 // Remove todas as conexões (inclusive a loja de teste do sandbox); produtos e vendas já sincronizados são mantidos

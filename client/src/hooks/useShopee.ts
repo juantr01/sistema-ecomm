@@ -11,7 +11,13 @@ interface ShopeeStatus {
 
 interface ShopeeSyncResult {
   products: { created: number; updated: number };
-  orders: { created: number; updated: number; removed: number; skipped: number };
+  orders: {
+    found: number;
+    created: number;
+    updated: number;
+    removed: number;
+    skipped: { orderSn: string; reason: string }[];
+  };
 }
 
 export function useShopeeStatus() {

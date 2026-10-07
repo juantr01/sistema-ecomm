@@ -12,7 +12,7 @@ import { Combobox } from "@/components/shared/Combobox";
 import { useSuppliers } from "@/hooks/useSuppliers";
 import { useProducts } from "@/hooks/useProducts";
 import { useCreatePurchase } from "@/hooks/usePurchases";
-import { formatCurrency } from "@/lib/format";
+import { formatCurrency, toInputDate } from "@/lib/format";
 import { toast } from "@/stores/toastStore";
 import { ApiError } from "@/lib/api";
 
@@ -47,7 +47,7 @@ export default function CompraForm() {
   } = useForm<FormValues>({
     resolver: zodResolver(schema),
     defaultValues: {
-      purchaseDate: new Date().toISOString().slice(0, 10),
+      purchaseDate: toInputDate(new Date()),
       freight: 0,
       items: [{ productId: "", quantity: 1, unitCost: 0 }],
     },

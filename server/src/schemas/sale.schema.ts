@@ -1,11 +1,12 @@
 import { z } from "zod";
+import { localDate } from "./localDate";
 
 export const createSaleSchema = z.object({
   productId: z.string().min(1, "Produto obrigatório"),
   quantity: z.coerce.number().int().positive("Quantidade deve ser maior que zero"),
   unitCost: z.coerce.number().min(0, "Custo do produto inválido"),
   totalAmount: z.coerce.number().min(0, "Valor recebido inválido"),
-  saleDate: z.coerce.date().optional().default(() => new Date()),
+  saleDate: localDate().optional().default(() => new Date()),
 });
 
 export const listSalesQuerySchema = z.object({

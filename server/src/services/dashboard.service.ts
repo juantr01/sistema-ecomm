@@ -1,5 +1,5 @@
 import { prisma } from "../config/prisma";
-import { startOfDay, endOfDay, startOfMonth, endOfMonth } from "../utils/dateRange";
+import { startOfDay, endOfDay, startOfMonth, endOfMonth, toDateKey } from "../utils/dateRange";
 
 export async function getDashboardSummary() {
   const now = new Date();
@@ -76,11 +76,11 @@ export async function getRevenueTrend(days = 30) {
   const byDay = new Map<string, { totalAmount: number; profit: number }>();
   for (let i = 0; i < days; i++) {
     const day = new Date(from.getTime() + i * 24 * 60 * 60 * 1000);
-    byDay.set(day.toISOString().slice(0, 10), { totalAmount: 0, profit: 0 });
+    byDay.set(toDateKey(day), { totalAmount: 0, profit: 0 });
   }
 
   for (const sale of sales) {
-    const key = sale.saleDate.toISOString().slice(0, 10);
+    const key = toDateKey(sale.saleDate);
     const entry = byDay.get(key);
     if (entry) {
       entry.totalAmount += Number(sale.totalAmount);

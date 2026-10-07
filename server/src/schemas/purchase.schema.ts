@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { localDate } from "./localDate";
 
 export const purchaseItemSchema = z.object({
   productId: z.string().min(1),
@@ -8,7 +9,7 @@ export const purchaseItemSchema = z.object({
 
 export const createPurchaseSchema = z.object({
   supplierId: z.string().min(1, "Fornecedor obrigatório"),
-  purchaseDate: z.coerce.date(),
+  purchaseDate: localDate(),
   freight: z.coerce.number().min(0).default(0),
   notes: z.string().optional().nullable(),
   items: z.array(purchaseItemSchema).min(1, "Adicione ao menos um item"),

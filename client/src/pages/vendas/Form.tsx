@@ -13,6 +13,7 @@ import { useProducts } from "@/hooks/useProducts";
 import { useCreateSale } from "@/hooks/useSales";
 import { toast } from "@/stores/toastStore";
 import { ApiError } from "@/lib/api";
+import { toInputDate } from "@/lib/format";
 
 const schema = z.object({
   productId: z.string().min(1, "Selecione um produto"),
@@ -38,7 +39,7 @@ export default function VendaForm() {
     formState: { errors, dirtyFields },
   } = useForm<FormValues>({
     resolver: zodResolver(schema),
-    defaultValues: { saleDate: new Date().toISOString().slice(0, 10), unitCost: 0, quantity: 1 },
+    defaultValues: { saleDate: toInputDate(new Date()), unitCost: 0, quantity: 1 },
   });
 
   const selectedProductId = watch("productId");

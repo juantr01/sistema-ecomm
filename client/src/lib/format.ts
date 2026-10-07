@@ -12,7 +12,9 @@ export function formatDateTime(value: string | Date): string {
   return new Intl.DateTimeFormat("pt-BR", { dateStyle: "short", timeStyle: "short" }).format(date);
 }
 
+// Data no fuso do navegador; toISOString() usaria UTC e viraria o dia após as 21h no Brasil
 export function toInputDate(value: string | Date): string {
   const date = typeof value === "string" ? new Date(value) : value;
-  return date.toISOString().slice(0, 10);
+  const pad = (n: number) => String(n).padStart(2, "0");
+  return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}`;
 }

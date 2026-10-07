@@ -2,7 +2,7 @@ import { LogOut, Menu, User as UserIcon } from "lucide-react";
 import { ThemeToggle } from "./ThemeToggle";
 import { useLogout, useMe } from "@/hooks/useAuth";
 import { Button } from "@/components/ui/button";
-import { QuickAddSaleButton } from "@/components/sales/QuickAddSaleButton";
+import { ShopeeSyncButton } from "@/components/shopee/ShopeeSyncButton";
 import { useUiStore } from "@/stores/uiStore";
 
 export function Topbar() {
@@ -23,7 +23,7 @@ export function Topbar() {
         </button>
       </div>
       <div className="flex items-center gap-2 sm:gap-3">
-        <QuickAddSaleButton />
+        <ShopeeSyncButton compact />
         <ThemeToggle />
         <div className="flex items-center gap-2 border-l pl-3 text-sm text-muted-foreground">
           <UserIcon className="h-4 w-4" />

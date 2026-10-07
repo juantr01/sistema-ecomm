@@ -2,34 +2,31 @@ import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
+import { toInputDate } from "@/lib/format";
 
 export interface DateRange {
   from?: string;
   to?: string;
 }
 
-function toISODate(date: Date) {
-  return date.toISOString().slice(0, 10);
-}
-
 const PRESETS: Array<{ label: string; get: () => DateRange }> = [
   {
     label: "Hoje",
-    get: () => ({ from: toISODate(new Date()), to: toISODate(new Date()) }),
+    get: () => ({ from: toInputDate(new Date()), to: toInputDate(new Date()) }),
   },
   {
     label: "7 dias",
-    get: () => ({ from: toISODate(new Date(Date.now() - 6 * 86400000)), to: toISODate(new Date()) }),
+    get: () => ({ from: toInputDate(new Date(Date.now() - 6 * 86400000)), to: toInputDate(new Date()) }),
   },
   {
     label: "30 dias",
-    get: () => ({ from: toISODate(new Date(Date.now() - 29 * 86400000)), to: toISODate(new Date()) }),
+    get: () => ({ from: toInputDate(new Date(Date.now() - 29 * 86400000)), to: toInputDate(new Date()) }),
   },
   {
     label: "Este mês",
     get: () => {
       const now = new Date();
-      return { from: toISODate(new Date(now.getFullYear(), now.getMonth(), 1)), to: toISODate(now) };
+      return { from: toInputDate(new Date(now.getFullYear(), now.getMonth(), 1)), to: toInputDate(now) };
     },
   },
 ];

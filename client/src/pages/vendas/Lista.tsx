@@ -3,20 +3,54 @@ import { useNavigate } from "react-router-dom";
 import { Plus, Wallet, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { Input } from "@/components/ui/input";
 import { SearchInput } from "@/components/shared/SearchInput";
+import { DateRange } from "@/components/shared/DateRangeFilter";
 import { EmptyState } from "@/components/shared/EmptyState";
 import { ConfirmDialog } from "@/components/shared/ConfirmDialog";
 import { useSales, useDeleteSale } from "@/hooks/useSales";
-import { formatCurrency, formatDate } from "@/lib/format";
+import { formatCurrency, formatDate, toInputDate } from "@/lib/format";
 import { toast } from "@/stores/toastStore";
 import { ApiError } from "@/lib/api";
+
+type Period = "dia" | "semana" | "mes" | "todas";
+
+const PERIODS: { value: Period; label: string }[] = [
+  { value: "dia", label: "Dia" },
+  { value: "semana", label: "Semana" },
+  { value: "mes", label: "Mês" },
+  { value: "todas", label: "Todas" },
+];
+
+// Intervalo do período que contém a data de referência (semana de segunda a domingo)
+function getPeriodRange(period: Period, reference: string): DateRange {
+  if (period === "todas") return {};
+  const ref = new Date(`${reference}T00:00:00`);
+  if (period === "dia") return { from: reference, to: reference };
+  if (period === "semana") {
+    const monday = new Date(ref);
+    monday.setDate(ref.getDate() - ((ref.getDay() + 6) % 7));
+    const sunday = new Date(monday);
+    sunday.setDate(monday.getDate() + 6);
+    return { from: toInputDate(monday), to: toInputDate(sunday) };
+  }
+  return {
+    from: toInputDate(new Date(ref.getFullYear(), ref.getMonth(), 1)),
+    to: toInputDate(new Date(ref.getFullYear(), ref.getMonth() + 1, 0)),
+  };
+}
 
 export default function VendasLista() {
   const navigate = useNavigate();
   const [search, setSearch] = useState("");
   const [deleteId, setDeleteId] = useState<string | null>(null);
+  const [period, setPeriod] = useState<Period>("todas");
+  const [reference, setReference] = useState(() => toInputDate(new Date()));
 
-  const { data: sales, isLoading } = useSales({ search: search || undefined });
+  const range = getPeriodRange(period, reference);
+  const { data: sales, isLoading } = useSales({ search: search || undefined, ...range });
+  const totalAmount = sales?.reduce((sum, s) => sum + Number(s.totalAmount), 0) ?? 0;
+  const totalProfit = sales?.reduce((sum, s) => sum + Number(s.profit), 0) ?? 0;
   const deleteSale = useDeleteSale();
 
   async function handleDelete() {
@@ -44,12 +78,40 @@ export default function VendasLista() {
         </Button>
       </div>
 
-      <SearchInput
-        value={search}
-        onChange={setSearch}
-        placeholder="Buscar por produto ou SKU..."
-        className="w-full sm:w-64"
-      />
+      <div className="flex flex-wrap items-center gap-2">
+        <SearchInput
+          value={search}
+          onChange={setSearch}
+          placeholder="Buscar por produto ou SKU..."
+          className="w-full sm:w-64"
+        />
+        {PERIODS.map((p) => (
+          <Button
+            key={p.value}
+            type="button"
+            size="sm"
+            variant={period === p.value ? "default" : "outline"}
+            onClick={() => setPeriod(p.value)}
+          >
+            {p.label}
+          </Button>
+        ))}
+        {period !== "todas" && (
+          <Input
+            type="date"
+            className="w-40"
+            value={reference}
+            onChange={(e) => e.target.value && setReference(e.target.value)}
+          />
+        )}
+      </div>
+
+      {sales && sales.length > 0 && (
+        <p className="text-sm text-muted-foreground">
+          {sales.length} {sales.length === 1 ? "venda" : "vendas"} · Total {formatCurrency(totalAmount)} · Lucro{" "}
+          {formatCurrency(totalProfit)}
+        </p>
+      )}
 
       <div className="rounded-lg border bg-card">
         {isLoading ? (
