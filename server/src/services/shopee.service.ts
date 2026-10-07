@@ -177,10 +177,15 @@ interface ShopeeOrderLineItem {
 
 interface ShopeeOrderDetail {
   order_sn: string;
+  order_status: string;
   create_time: number;
   total_amount: number;
   item_list: ShopeeOrderLineItem[];
 }
+
+// Pedidos não pagos ainda não são venda; cancelados/devolvidos deixam de ser
+const IGNORED_ORDER_STATUSES = new Set(["UNPAID"]);
+const VOIDED_ORDER_STATUSES = new Set(["IN_CANCEL", "CANCELLED", "TO_RETURN"]);
 
 async function fetchOrderSnsInWindow(accessToken: string, shopId: string, timeFrom: number, timeTo: number): Promise<string[]> {
   const orderSns: string[] = [];
@@ -194,7 +199,6 @@ async function fetchOrderSnsInWindow(accessToken: string, shopId: string, timeFr
         time_to: timeTo,
         page_size: 50,
         cursor,
-        order_status: "COMPLETED",
       },
       { accessToken, shopId }
     );
@@ -223,8 +227,9 @@ export async function syncOrders() {
 
   const now = Math.floor(Date.now() / 1000);
   const windowSeconds = ORDER_LIST_WINDOW_DAYS * 24 * 60 * 60;
+  // Sempre revisa ao menos a última janela, para pegar pedidos em andamento que mudaram de valor/status
   const overallFrom = shop.lastOrderSyncAt
-    ? Math.floor(shop.lastOrderSyncAt.getTime() / 1000)
+    ? Math.min(Math.floor(shop.lastOrderSyncAt.getTime() / 1000), now - windowSeconds)
     : now - DEFAULT_LOOKBACK_DAYS * 24 * 60 * 60;
 
   const orderSns: string[] = [];
@@ -233,11 +238,16 @@ export async function syncOrders() {
     orderSns.push(...(await fetchOrderSnsInWindow(accessToken, shop.shopId, windowStart, windowEnd)));
   }
 
+  // A lista pode repetir pedidos entre janelas
+  const uniqueOrderSns = [...new Set(orderSns)];
+
   let created = 0;
+  let updated = 0;
+  let removed = 0;
   let skipped = 0;
 
-  for (let i = 0; i < orderSns.length; i += 50) {
-    const batch = orderSns.slice(i, i + 50);
+  for (let i = 0; i < uniqueOrderSns.length; i += 50) {
+    const batch = uniqueOrderSns.slice(i, i + 50);
     const url = buildShopeeUrl(
       "/api/v2/order/get_order_detail",
       { order_sn_list: batch.join(","), response_optional_fields: "item_list,total_amount" },
@@ -246,38 +256,65 @@ export async function syncOrders() {
     const data = await shopeeFetch<{ response?: { order_list?: ShopeeOrderDetail[] } }>(url);
 
     for (const order of data.response?.order_list ?? []) {
+      if (IGNORED_ORDER_STATUSES.has(order.order_status)) continue;
+
+      if (VOIDED_ORDER_STATUSES.has(order.order_status)) {
+        const result = await prisma.sale.deleteMany({ where: { shopeeOrderSn: order.order_sn } });
+        removed += result.count;
+        continue;
+      }
+
       // O valor bruto do pedido inclui taxas da plataforma; usamos o repasse líquido (escrow)
       // para refletir o que realmente cai na conta, mesma regra das vendas manuais.
+      // Antes de o pedido ser concluído o escrow é uma estimativa; os próximos syncs atualizam o valor.
       const netAmount = await fetchOrderNetAmount(accessToken, shop.shopId, order.order_sn, order.total_amount);
       const itemList = order.item_list ?? [];
       const grossTotal = itemList.reduce((sum, it) => sum + it.model_discounted_price * it.model_quantity_purchased, 0) || order.total_amount;
 
+      // Variações do mesmo anúncio viram uma única venda por produto (unique em shopeeOrderSn + productId)
+      const linesByItem = new Map<number, { quantity: number; gross: number }>();
       for (const line of itemList) {
-        const product = await prisma.product.findUnique({ where: { shopeeItemId: String(line.item_id) } });
+        const acc = linesByItem.get(line.item_id) ?? { quantity: 0, gross: 0 };
+        acc.quantity += line.model_quantity_purchased;
+        acc.gross += line.model_discounted_price * line.model_quantity_purchased;
+        linesByItem.set(line.item_id, acc);
+      }
+
+      for (const [itemId, line] of linesByItem) {
+        const product = await prisma.product.findUnique({ where: { shopeeItemId: String(itemId) } });
         if (!product) {
           skipped++;
           continue;
         }
 
-        const lineGross = line.model_discounted_price * line.model_quantity_purchased;
-        const lineNet = grossTotal > 0 ? netAmount * (lineGross / grossTotal) : 0;
+        const lineNet = grossTotal > 0 ? netAmount * (line.gross / grossTotal) : 0;
+        const where = { shopeeOrderSn_productId: { shopeeOrderSn: order.order_sn, productId: product.id } };
+        const existing = await prisma.sale.findUnique({ where });
 
-        try {
+        if (existing) {
+          await prisma.sale.update({
+            where,
+            data: {
+              quantity: line.quantity,
+              totalAmount: lineNet,
+              profit: lineNet - Number(existing.unitCostAtSale) * line.quantity,
+            },
+          });
+          updated++;
+        } else {
           await prisma.sale.create({
             data: {
               productId: product.id,
-              quantity: line.model_quantity_purchased,
+              quantity: line.quantity,
               totalAmount: lineNet,
               unitCostAtSale: product.costPrice,
-              profit: lineNet - Number(product.costPrice) * line.model_quantity_purchased,
+              profit: lineNet - Number(product.costPrice) * line.quantity,
               origin: "SHOPEE",
               shopeeOrderSn: order.order_sn,
               saleDate: new Date(order.create_time * 1000),
             },
           });
           created++;
-        } catch {
-          skipped++;
         }
       }
     }
@@ -285,7 +322,7 @@ export async function syncOrders() {
 
   await prisma.shopeeShop.update({ where: { shopId: shop.shopId }, data: { lastOrderSyncAt: new Date() } });
 
-  return { created, skipped };
+  return { created, updated, removed, skipped };
 }
 
 // Remove todas as conexões (inclusive a loja de teste do sandbox); produtos e vendas já sincronizados são mantidos

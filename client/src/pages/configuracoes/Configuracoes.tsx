@@ -85,7 +85,7 @@ export default function Configuracoes() {
       const result = await shopeeSync.mutateAsync();
       toast({
         title: "Sincronização concluída",
-        description: `Produtos: ${result.products.created} novos, ${result.products.updated} atualizados. Vendas: ${result.orders.created} importadas.`,
+        description: `Produtos: ${result.products.created} novos, ${result.products.updated} atualizados. Vendas: ${result.orders.created} importadas, ${result.orders.updated} atualizadas, ${result.orders.removed} removidas (canceladas).${result.orders.skipped ? ` ${result.orders.skipped} itens sem produto sincronizado.` : ""}`,
         variant: "success",
       });
     } catch (err) {
