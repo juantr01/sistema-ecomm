@@ -288,6 +288,11 @@ export async function syncOrders() {
   return { created, skipped };
 }
 
+// Remove todas as conexões (inclusive a loja de teste do sandbox); produtos e vendas já sincronizados são mantidos
+export async function disconnect() {
+  await prisma.shopeeShop.deleteMany();
+}
+
 export async function getStatus() {
   const shop = await getConnectedShop();
   if (!shop) {

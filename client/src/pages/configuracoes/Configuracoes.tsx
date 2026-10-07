@@ -11,7 +11,7 @@ import { ConfirmDialog } from "@/components/shared/ConfirmDialog";
 import { formatDateTime } from "@/lib/format";
 import { useCategories, useCreateCategory, useDeleteCategory } from "@/hooks/useCategories";
 import { useChangePassword } from "@/hooks/useAuth";
-import { useShopeeStatus, useConnectShopee, useShopeeSync } from "@/hooks/useShopee";
+import { useShopeeStatus, useConnectShopee, useShopeeSync, useDisconnectShopee } from "@/hooks/useShopee";
 import { toast } from "@/stores/toastStore";
 import { ApiError } from "@/lib/api";
 
@@ -31,6 +31,7 @@ type PasswordValues = z.infer<typeof passwordSchema>;
 export default function Configuracoes() {
   const [newCategory, setNewCategory] = useState("");
   const [deleteId, setDeleteId] = useState<string | null>(null);
+  const [confirmDisconnect, setConfirmDisconnect] = useState(false);
 
   const { data: categories } = useCategories();
   const createCategory = useCreateCategory();
@@ -39,6 +40,7 @@ export default function Configuracoes() {
   const { data: shopeeStatus } = useShopeeStatus();
   const connectShopee = useConnectShopee();
   const shopeeSync = useShopeeSync();
+  const disconnectShopee = useDisconnectShopee();
 
   const {
     register,
@@ -95,6 +97,21 @@ export default function Configuracoes() {
     }
   }
 
+  async function handleDisconnectShopee() {
+    try {
+      await disconnectShopee.mutateAsync();
+      toast({ title: "Loja Shopee desconectada", variant: "success" });
+    } catch (err) {
+      toast({
+        title: "Não foi possível desconectar a Shopee",
+        description: err instanceof ApiError ? err.message : undefined,
+        variant: "destructive",
+      });
+    } finally {
+      setConfirmDisconnect(false);
+    }
+  }
+
   async function onSubmitPassword(values: PasswordValues) {
     try {
       await changePassword.mutateAsync(values);
@@ -138,9 +155,14 @@ export default function Configuracoes() {
                   {shopeeStatus.lastOrderSyncAt ? formatDateTime(shopeeStatus.lastOrderSyncAt) : "nunca"}
                 </p>
               </div>
-              <Button type="button" onClick={handleSyncShopee} disabled={shopeeSync.isPending}>
-                {shopeeSync.isPending ? "Sincronizando..." : "Sincronizar com Shopee"}
-              </Button>
+              <div className="flex flex-wrap gap-2">
+                <Button type="button" onClick={handleSyncShopee} disabled={shopeeSync.isPending}>
+                  {shopeeSync.isPending ? "Sincronizando..." : "Sincronizar com Shopee"}
+                </Button>
+                <Button type="button" variant="outline" onClick={() => setConfirmDisconnect(true)}>
+                  Desconectar
+                </Button>
+              </div>
             </>
           ) : (
             <Button type="button" onClick={() => connectShopee.mutate()} disabled={connectShopee.isPending}>
@@ -220,6 +242,16 @@ export default function Configuracoes() {
         description="Só é possível excluir categorias sem produtos vinculados."
         onConfirm={handleDeleteCategory}
         loading={deleteCategory.isPending}
+      />
+
+      <ConfirmDialog
+        open={confirmDisconnect}
+        onOpenChange={setConfirmDisconnect}
+        title="Desconectar loja Shopee?"
+        description="Produtos e vendas já sincronizados continuam no sistema. Depois você pode conectar outra loja."
+        confirmLabel="Desconectar"
+        onConfirm={handleDisconnectShopee}
+        loading={disconnectShopee.isPending}
       />
     </div>
   );

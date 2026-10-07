@@ -38,6 +38,14 @@ export function useShopeeCallback() {
   });
 }
 
+export function useDisconnectShopee() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: () => api.delete<void>("/shopee/connection"),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["shopee", "status"] }),
+  });
+}
+
 export function useShopeeSync() {
   const queryClient = useQueryClient();
   return useMutation({

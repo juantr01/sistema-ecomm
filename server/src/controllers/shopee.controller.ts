@@ -27,6 +27,15 @@ export async function callbackHandler(req: Request, res: Response, next: NextFun
   }
 }
 
+export async function disconnectHandler(_req: Request, res: Response, next: NextFunction) {
+  try {
+    await shopeeService.disconnect();
+    res.status(204).send();
+  } catch (err) {
+    next(err);
+  }
+}
+
 export async function syncHandler(_req: Request, res: Response, next: NextFunction) {
   try {
     const products = await shopeeService.syncProducts();
