@@ -10,8 +10,8 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { EmptyState } from "@/components/shared/EmptyState";
 import { ConfirmDialog } from "@/components/shared/ConfirmDialog";
-import { AddProductsDialog } from "@/components/custos/AddProductsDialog";
-import { GroupProductsDialog } from "@/components/custos/GroupProductsDialog";
+import { AddVariationsDialog } from "@/components/custos/AddVariationsDialog";
+import { GroupVariationsDialog } from "@/components/custos/GroupVariationsDialog";
 import { useCostGroups, useCreateCostGroup, useUpdateCostGroup, useDeleteCostGroup } from "@/hooks/useCostGroups";
 import { useShopeeStatus } from "@/hooks/useShopee";
 import { formatCurrency } from "@/lib/format";
@@ -65,7 +65,7 @@ export default function Custos() {
         toast({ title: "Grupo atualizado", variant: "success" });
       } else {
         await createGroup.mutateAsync({ name: values.name, cost: values.cost });
-        toast({ title: "Grupo criado", description: 'Agora clique em "Adicionar produtos".', variant: "success" });
+        toast({ title: "Grupo criado", description: 'Agora clique em "Adicionar variações".', variant: "success" });
       }
       setFormGroup(null);
     } catch (err) {
@@ -115,12 +115,12 @@ export default function Custos() {
           {data.ungroupedCount > 0 ? (
             <>
               <AlertTriangle className="h-4 w-4 shrink-0" />
-              {data.ungroupedCount} produto(s) ainda sem grupo de custo.
+              {data.ungroupedCount} variação(ões) ainda sem grupo de custo.
             </>
           ) : (
             <>
               <CheckCircle2 className="h-4 w-4 shrink-0" />
-              Todos os produtos estão em um grupo de custo.
+              Todas as variações estão em um grupo de custo.
             </>
           )}
         </div>
@@ -133,7 +133,7 @@ export default function Custos() {
           <EmptyState
             icon={<Tags className="h-8 w-8" />}
             title="Nenhum grupo de custo"
-            description='Crie um grupo (ex.: "Moletom Adulto" com custo R$ 39,00) e adicione os produtos a ele.'
+            description='Crie um grupo (ex.: "Moletom Adulto" com custo R$ 39,00) e adicione as variações a ele.'
             action={
               <Button onClick={() => setFormGroup("new")}>
                 <Plus className="h-4 w-4" /> Novo grupo de custo
@@ -146,7 +146,7 @@ export default function Custos() {
               <TableRow>
                 <TableHead>Grupo</TableHead>
                 <TableHead>Custo</TableHead>
-                <TableHead>Produtos</TableHead>
+                <TableHead>Variações</TableHead>
                 <TableHead className="text-right">Ações</TableHead>
               </TableRow>
             </TableHeader>
@@ -157,15 +157,15 @@ export default function Custos() {
                   <TableCell>{formatCurrency(Number(group.cost))}</TableCell>
                   <TableCell>
                     <button type="button" className="text-primary hover:underline" onClick={() => setViewGroup(group)}>
-                      {group.productCount} produto(s)
+                      {group.variationCount} variação(ões)
                     </button>
                   </TableCell>
                   <TableCell>
                     <div className="flex flex-wrap justify-end gap-1">
                       <Button size="sm" onClick={() => setAddTo(group)}>
-                        <ListPlus className="h-4 w-4" /> Adicionar produtos
+                        <ListPlus className="h-4 w-4" /> Adicionar variações
                       </Button>
-                      <Button variant="ghost" size="icon" title="Ver produtos" onClick={() => setViewGroup(group)}>
+                      <Button variant="ghost" size="icon" title="Ver variações" onClick={() => setViewGroup(group)}>
                         <Users className="h-4 w-4" />
                       </Button>
                       <Button variant="ghost" size="icon" title="Editar" onClick={() => setFormGroup(group)}>
@@ -222,14 +222,14 @@ export default function Custos() {
         </DialogContent>
       </Dialog>
 
-      <AddProductsDialog group={addTo} shopNames={shopNames} onOpenChange={(open) => !open && setAddTo(null)} />
-      <GroupProductsDialog group={viewGroup} shopNames={shopNames} onOpenChange={(open) => !open && setViewGroup(null)} />
+      <AddVariationsDialog group={addTo} shopNames={shopNames} onOpenChange={(open) => !open && setAddTo(null)} />
+      <GroupVariationsDialog group={viewGroup} shopNames={shopNames} onOpenChange={(open) => !open && setViewGroup(null)} />
 
       <ConfirmDialog
         open={!!deleteGroup}
         onOpenChange={(open) => !open && setDeleteGroup(null)}
         title={`Excluir o grupo ${deleteGroup?.name ?? ""}?`}
-        description="Os produtos saem do grupo e mantêm o último custo. As vendas não são alteradas."
+        description="As variações saem do grupo e mantêm o último custo. As vendas não são alteradas."
         confirmLabel="Excluir"
         onConfirm={handleDelete}
         loading={removeGroup.isPending}

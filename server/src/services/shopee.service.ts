@@ -5,7 +5,8 @@ import { AppError } from "../utils/AppError";
 import { buildShopeeUrl } from "../utils/shopeeSign";
 
 const ORDER_LIST_WINDOW_DAYS = 15;
-const DEFAULT_LOOKBACK_DAYS = 90;
+// Vendas da Shopee só contam a partir do início do uso do sistema (01/10/2026, horário de Brasília)
+const ORDERS_START = Math.floor(new Date("2026-10-01T00:00:00-03:00").getTime() / 1000);
 
 async function shopeeFetch<T = any>(url: string, options?: RequestInit): Promise<T> {
   const res = await fetch(url, {
@@ -114,12 +115,77 @@ function shopeeImageUpdate(currentImageUrl: string | null, shopeeImageUrl?: stri
   return shopeeImageUrl;
 }
 
+// Cada variação do anúncio tem o seu custo; anúncio sem variações usa o modelo 0
+function variationKey(itemId: string | number, modelId: string | number) {
+  return `${itemId}:${modelId}`;
+}
+
+interface VariationInfo {
+  key: string;
+  name: string;
+  sku: string | null;
+}
+
+// Variação nova herda o grupo de custo do produto (grupos montados antes do custo por variação)
+async function upsertVariation(product: { id: string; costGroupId: string | null }, variation: VariationInfo) {
+  const group = product.costGroupId ? await prisma.costGroup.findUnique({ where: { id: product.costGroupId } }) : null;
+  return prisma.productVariation.upsert({
+    where: { shopeeKey: variation.key },
+    create: {
+      productId: product.id,
+      shopeeKey: variation.key,
+      name: variation.name,
+      shopeeSku: variation.sku,
+      costGroupId: group?.id,
+      costPrice: group?.cost ?? 0,
+    },
+    update: { productId: product.id, name: variation.name, shopeeSku: variation.sku, active: true },
+  });
+}
+
 interface ShopeeItemBaseInfo {
   item_id: number;
   item_name: string;
   item_sku?: string;
   price_info?: { current_price?: number; original_price?: number }[];
   image?: { image_url_list?: string[] };
+  has_model?: boolean;
+  update_time?: number;
+}
+
+interface ShopeeModelList {
+  tier_variation?: { name?: string; option_list?: { option?: string }[] }[];
+  model?: { model_id: number; model_sku?: string; tier_index?: number[] }[];
+}
+
+async function fetchVariations(accessToken: string, shopId: string, item: ShopeeItemBaseInfo): Promise<VariationInfo[]> {
+  if (!item.has_model) {
+    return [{ key: variationKey(item.item_id, 0), name: "", sku: item.item_sku?.trim() || null }];
+  }
+  const url = buildShopeeUrl("/api/v2/product/get_model_list", { item_id: item.item_id }, { accessToken, shopId });
+  const data = await shopeeFetch<{ response?: ShopeeModelList }>(url);
+  const tiers = data.response?.tier_variation ?? [];
+  return (data.response?.model ?? []).map((model) => ({
+    key: variationKey(item.item_id, model.model_id),
+    // tier_index aponta a opção escolhida em cada nível (ex.: Cor → "Preto", Tamanho → "8 anos")
+    name: (model.tier_index ?? [])
+      .map((optionIndex, tier) => tiers[tier]?.option_list?.[optionIndex]?.option ?? "")
+      .filter(Boolean)
+      .join(" / "),
+    sku: model.model_sku?.trim() || item.item_sku?.trim() || null,
+  }));
+}
+
+// Variações que sumiram do anúncio ficam inativas (as vendas antigas continuam ligadas a elas)
+async function syncProductVariations(product: { id: string; costGroupId: string | null }, variations: VariationInfo[]) {
+  if (!variations.length) return;
+  for (const variation of variations) {
+    await upsertVariation(product, variation);
+  }
+  await prisma.productVariation.updateMany({
+    where: { productId: product.id, shopeeKey: { notIn: variations.map((v) => v.key) } },
+    data: { active: false },
+  });
 }
 
 async function syncProducts(shop: ShopeeShop) {
@@ -160,9 +226,10 @@ async function syncProducts(shop: ShopeeShop) {
       const imageUrl = item.image?.image_url_list?.[0];
 
       const existing = await findShopeeProduct(shopeeItemId);
+      let product;
 
       if (existing) {
-        await prisma.product.update({
+        product = await prisma.product.update({
           where: { id: existing.id },
           data: {
             name: item.item_name,
@@ -175,7 +242,7 @@ async function syncProducts(shop: ShopeeShop) {
         });
         updated++;
       } else {
-        await prisma.product.create({
+        product = await prisma.product.create({
           data: {
             name: item.item_name,
             sku: systemSku(shopeeItemId),
@@ -187,6 +254,16 @@ async function syncProducts(shop: ShopeeShop) {
           },
         });
         created++;
+      }
+
+      // Buscar as variações custa uma chamada por anúncio; só repete quando o anúncio mudou
+      const unchanged =
+        item.update_time !== undefined &&
+        product.shopeeUpdateTime === item.update_time &&
+        (await prisma.productVariation.count({ where: { productId: product.id } })) > 0;
+      if (!unchanged) {
+        await syncProductVariations(product, await fetchVariations(accessToken, shop.shopId, item));
+        await prisma.product.update({ where: { id: product.id }, data: { shopeeUpdateTime: item.update_time ?? null } });
       }
     }
   }
@@ -200,6 +277,9 @@ interface ShopeeOrderLineItem {
   item_id: number;
   item_name: string;
   item_sku?: string;
+  model_id?: number;
+  model_name?: string;
+  model_sku?: string;
   model_quantity_purchased: number;
   model_discounted_price: number;
   image_info?: { image_url?: string };
@@ -281,6 +361,11 @@ async function findOrCreateProductFromOrder(
   });
 }
 
+// Variação que ainda não veio no sync de produtos (anúncio pausado/excluído ou alterado depois)
+async function findOrCreateVariationFromOrder(product: { id: string; costGroupId: string | null }, variation: VariationInfo) {
+  return (await prisma.productVariation.findUnique({ where: { shopeeKey: variation.key } })) ?? upsertVariation(product, variation);
+}
+
 async function syncOrders(shop: ShopeeShop) {
   const accessToken = await getValidAccessToken(shop);
 
@@ -289,7 +374,7 @@ async function syncOrders(shop: ShopeeShop) {
   // Sempre revisa ao menos a última janela, para pegar pedidos em andamento que mudaram de valor/status
   const overallFrom = shop.lastOrderSyncAt
     ? Math.min(Math.floor(shop.lastOrderSyncAt.getTime() / 1000), now - windowSeconds)
-    : now - DEFAULT_LOOKBACK_DAYS * 24 * 60 * 60;
+    : ORDERS_START;
 
   const orderSns: string[] = [];
   for (let windowStart = overallFrom; windowStart < now; windowStart += windowSeconds) {
@@ -316,6 +401,9 @@ async function syncOrders(shop: ShopeeShop) {
     const data = await shopeeFetch<{ response?: { order_list?: ShopeeOrderDetail[] } }>(url);
 
     for (const order of data.response?.order_list ?? []) {
+      // A lista é por data de atualização; pedido feito antes do início não entra
+      if (order.create_time < ORDERS_START) continue;
+
       if (IGNORED_ORDER_STATUSES.has(order.order_status)) {
         skipped.push({ orderSn: order.order_sn, reason: "aguardando pagamento" });
         continue;
@@ -334,31 +422,35 @@ async function syncOrders(shop: ShopeeShop) {
       const itemList = order.item_list ?? [];
       const grossTotal = itemList.reduce((sum, it) => sum + it.model_discounted_price * it.model_quantity_purchased, 0) || order.total_amount;
 
-      // Variações do mesmo anúncio viram uma única venda por produto (unique em shopeeOrderSn + productId)
-      const linesByItem = new Map<
-        number,
-        { quantity: number; gross: number; name: string; sku?: string; unitPrice: number; imageUrl?: string }
+      // Uma venda por variação do pedido (unique em shopeeOrderSn + variationId)
+      const linesByVariation = new Map<
+        string,
+        { itemId: number; quantity: number; gross: number; name: string; sku?: string; unitPrice: number; imageUrl?: string; variation: VariationInfo }
       >();
       for (const line of itemList) {
-        const acc = linesByItem.get(line.item_id) ?? {
+        const key = variationKey(line.item_id, line.model_id ?? 0);
+        const acc = linesByVariation.get(key) ?? {
+          itemId: line.item_id,
           quantity: 0,
           gross: 0,
           name: line.item_name,
           sku: line.item_sku,
           unitPrice: line.model_discounted_price,
           imageUrl: line.image_info?.image_url,
+          variation: { key, name: line.model_name?.trim() ?? "", sku: line.model_sku?.trim() || line.item_sku?.trim() || null },
         };
         acc.quantity += line.model_quantity_purchased;
         acc.gross += line.model_discounted_price * line.model_quantity_purchased;
-        linesByItem.set(line.item_id, acc);
+        linesByVariation.set(key, acc);
       }
 
-      for (const [itemId, line] of linesByItem) {
+      for (const line of linesByVariation.values()) {
         // Anúncios pausados/excluídos não vêm no sync de produtos; cria o produto a partir do pedido
-        const product = await findOrCreateProductFromOrder(shop.shopId, itemId, line);
+        const product = await findOrCreateProductFromOrder(shop.shopId, line.itemId, line);
+        const variation = await findOrCreateVariationFromOrder(product, line.variation);
 
         const lineNet = grossTotal > 0 ? netAmount * (line.gross / grossTotal) : 0;
-        const where = { shopeeOrderSn_productId: { shopeeOrderSn: order.order_sn, productId: product.id } };
+        const where = { shopeeOrderSn_variationId: { shopeeOrderSn: order.order_sn, variationId: variation.id } };
         const existing = await prisma.sale.findUnique({ where });
 
         if (existing) {
@@ -375,10 +467,11 @@ async function syncOrders(shop: ShopeeShop) {
           await prisma.sale.create({
             data: {
               productId: product.id,
+              variationId: variation.id,
               quantity: line.quantity,
               totalAmount: lineNet,
-              unitCostAtSale: product.costPrice,
-              profit: lineNet - Number(product.costPrice) * line.quantity,
+              unitCostAtSale: variation.costPrice,
+              profit: lineNet - Number(variation.costPrice) * line.quantity,
               origin: "SHOPEE",
               shopeeOrderSn: order.order_sn,
               saleDate: new Date(order.create_time * 1000),

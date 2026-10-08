@@ -12,12 +12,6 @@ export async function listProducts(query: ListProductsQuery) {
   if (query.shopId) {
     where.shopeeShopId = query.shopId;
   }
-  if (query.costGroupId) {
-    where.costGroupId = query.costGroupId;
-  }
-  if (query.withoutCostGroup === "true") {
-    where.costGroupId = null;
-  }
   if (query.categoryId) {
     where.categoryId = query.categoryId;
   }
@@ -31,7 +25,7 @@ export async function listProducts(query: ListProductsQuery) {
 
   let products = await prisma.product.findMany({
     where,
-    include: { category: true, costGroup: { select: { id: true, name: true } } },
+    include: { category: true },
     orderBy: { name: "asc" },
   });
 

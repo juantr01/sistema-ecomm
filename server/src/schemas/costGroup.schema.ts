@@ -10,10 +10,19 @@ export const updateCostGroupSchema = createCostGroupSchema.partial().extend({
   recalculateSales: z.boolean().optional(),
 });
 
-export const addCostGroupProductsSchema = z.object({
-  productIds: z.array(z.string().min(1)).min(1, "Selecione ao menos um produto"),
+export const addCostGroupVariationsSchema = z.object({
+  variationIds: z.array(z.string().min(1)).min(1, "Selecione ao menos uma variação"),
+});
+
+export const listCostVariationsQuerySchema = z.object({
+  search: z.string().optional(),
+  variationSearch: z.string().optional(),
+  groupId: z.string().optional(),
+  // "true" lista só variações que ainda não estão em nenhum grupo
+  withoutGroup: z.enum(["true", "false"]).optional(),
 });
 
 export type CreateCostGroupInput = z.infer<typeof createCostGroupSchema>;
 export type UpdateCostGroupInput = z.infer<typeof updateCostGroupSchema>;
-export type AddCostGroupProductsInput = z.infer<typeof addCostGroupProductsSchema>;
+export type AddCostGroupVariationsInput = z.infer<typeof addCostGroupVariationsSchema>;
+export type ListCostVariationsQuery = z.infer<typeof listCostVariationsQuerySchema>;

@@ -145,6 +145,7 @@ export default function VendasLista() {
                       </Badge>
                     )}
                     {sale.product?.name}
+                    {sale.variation?.name && <span className="text-muted-foreground"> · {sale.variation.name}</span>}
                   </TableCell>
                   <TableCell>{sale.quantity}</TableCell>
                   <TableCell>{formatCurrency(Number(sale.totalAmount))}</TableCell>

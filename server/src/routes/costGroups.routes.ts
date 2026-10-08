@@ -1,14 +1,15 @@
 import { Router } from "express";
 import { requireAuth } from "../middlewares/auth.middleware";
 import { validate } from "../middlewares/validate.middleware";
-import { addCostGroupProductsSchema, createCostGroupSchema, updateCostGroupSchema } from "../schemas/costGroup.schema";
+import { addCostGroupVariationsSchema, createCostGroupSchema, listCostVariationsQuerySchema, updateCostGroupSchema } from "../schemas/costGroup.schema";
 import {
   listHandler,
   createHandler,
   updateHandler,
   deleteHandler,
-  addProductsHandler,
-  removeProductHandler,
+  listVariationsHandler,
+  addVariationsHandler,
+  removeVariationHandler,
 } from "../controllers/costGroup.controller";
 
 const router = Router();
@@ -16,10 +17,11 @@ const router = Router();
 router.use(requireAuth);
 
 router.get("/", listHandler);
+router.get("/variations", validate(listCostVariationsQuerySchema, "query"), listVariationsHandler);
 router.post("/", validate(createCostGroupSchema), createHandler);
 router.put("/:id", validate(updateCostGroupSchema), updateHandler);
 router.delete("/:id", deleteHandler);
-router.post("/:id/products", validate(addCostGroupProductsSchema), addProductsHandler);
-router.delete("/:id/products/:productId", removeProductHandler);
+router.post("/:id/variations", validate(addCostGroupVariationsSchema), addVariationsHandler);
+router.delete("/:id/variations/:variationId", removeVariationHandler);
 
 export default router;

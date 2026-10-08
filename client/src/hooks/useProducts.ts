@@ -6,8 +6,6 @@ export interface ProductFilters {
   search?: string;
   categoryId?: string;
   shopId?: string;
-  costGroupId?: string;
-  withoutCostGroup?: "true";
   lowStock?: boolean;
   active?: boolean;
 }

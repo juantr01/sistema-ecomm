@@ -1,6 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { api } from "@/lib/api";
-import { CostGroup } from "@/types";
+import { api, buildQuery } from "@/lib/api";
+import { CostGroup, CostVariation } from "@/types";
 
 interface CostGroupList {
   groups: CostGroup[];
@@ -51,19 +51,34 @@ export function useDeleteCostGroup() {
   });
 }
 
-export function useAddCostGroupProducts() {
+export interface CostVariationFilters {
+  search?: string;
+  variationSearch?: string;
+  groupId?: string;
+  withoutGroup?: "true";
+}
+
+export function useCostVariations(filters: CostVariationFilters, enabled: boolean) {
+  return useQuery({
+    queryKey: ["cost-groups", "variations", filters],
+    queryFn: () => api.get<CostVariation[]>(`/cost-groups/variations${buildQuery(filters)}`),
+    enabled,
+  });
+}
+
+export function useAddCostGroupVariations() {
   const invalidate = useInvalidateCosts();
   return useMutation({
-    mutationFn: ({ id, productIds }: { id: string; productIds: string[] }) =>
-      api.post<{ added: number }>(`/cost-groups/${id}/products`, { productIds }),
+    mutationFn: ({ id, variationIds }: { id: string; variationIds: string[] }) =>
+      api.post<{ added: number }>(`/cost-groups/${id}/variations`, { variationIds }),
     onSuccess: invalidate,
   });
 }
 
-export function useRemoveCostGroupProduct() {
+export function useRemoveCostGroupVariation() {
   const invalidate = useInvalidateCosts();
   return useMutation({
-    mutationFn: ({ id, productId }: { id: string; productId: string }) => api.delete(`/cost-groups/${id}/products/${productId}`),
+    mutationFn: ({ id, variationId }: { id: string; variationId: string }) => api.delete(`/cost-groups/${id}/variations/${variationId}`),
     onSuccess: invalidate,
   });
 }

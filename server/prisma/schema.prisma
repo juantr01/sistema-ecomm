@@ -75,10 +75,13 @@ model Product {
   shopeeSku        String?
   costGroupId      String?
   costGroup        CostGroup?        @relation(fields: [costGroupId], references: [id], onDelete: SetNull)
+  // update_time do anúncio no último sync; só busca as variações de novo se o anúncio mudou
+  shopeeUpdateTime Int?
   createdAt        DateTime          @default(now())
   updatedAt        DateTime          @updatedAt
 
   purchaseItems  PurchaseItem[]
+  variations     ProductVariation[]
   sales          Sale[]
   stockMovements StockMovement[]
 
@@ -151,19 +154,23 @@ enum SaleOrigin {
 }
 
 model Sale {
-  id             String     @id @default(cuid())
+  id             String            @id @default(cuid())
   productId      String
-  product        Product    @relation(fields: [productId], references: [id])
+  product        Product           @relation(fields: [productId], references: [id])
   quantity       Int
-  totalAmount    Decimal    @db.Decimal(12, 2)
-  unitCostAtSale Decimal    @db.Decimal(12, 2)
-  profit         Decimal    @db.Decimal(12, 2)
-  origin         SaleOrigin @default(MANUAL)
+  totalAmount    Decimal           @db.Decimal(12, 2)
+  unitCostAtSale Decimal           @db.Decimal(12, 2)
+  profit         Decimal           @db.Decimal(12, 2)
+  origin         SaleOrigin        @default(MANUAL)
   shopeeOrderSn  String?
+  // variação vendida (vendas da Shopee); o custo da venda vem dela
+  variationId    String?
+  variation      ProductVariation? @relation(fields: [variationId], references: [id], onDelete: SetNull)
   saleDate       DateTime
-  createdAt      DateTime   @default(now())
+  createdAt      DateTime          @default(now())
 
-  @@unique([shopeeOrderSn, productId])
+  @@unique([shopeeOrderSn, variationId])
+  @@index([variationId])
   @@index([productId])
   @@index([saleDate])
   @@map("sales")
@@ -237,12 +244,36 @@ model StockMovement {
 
 // Grupo de custo (ex.: "Moletom Adulto" = R$ 39): os produtos do grupo herdam o custo
 model CostGroup {
-  id        String    @id @default(cuid())
-  name      String
-  cost      Decimal   @db.Decimal(12, 2)
-  createdAt DateTime  @default(now())
-  updatedAt DateTime  @updatedAt
-  products  Product[]
+  id         String             @id @default(cuid())
+  name       String
+  cost       Decimal            @db.Decimal(12, 2)
+  createdAt  DateTime           @default(now())
+  updatedAt  DateTime           @updatedAt
+  products   Product[]
+  variations ProductVariation[]
 
   @@map("cost_groups")
+}
+
+// Variação de um anúncio da Shopee (ex.: "Preto / 8 anos"); cada uma pode ter o seu custo.
+// Anúncio sem variações tem uma variação única (modelo 0).
+model ProductVariation {
+  id          String     @id @default(cuid())
+  productId   String
+  product     Product    @relation(fields: [productId], references: [id], onDelete: Cascade)
+  // "<item_id>:<model_id>"
+  shopeeKey   String     @unique
+  name        String     @default("")
+  shopeeSku   String?
+  costGroupId String?
+  costGroup   CostGroup? @relation(fields: [costGroupId], references: [id], onDelete: SetNull)
+  costPrice   Decimal    @default(0) @db.Decimal(12, 2)
+  active      Boolean    @default(true)
+  createdAt   DateTime   @default(now())
+  updatedAt   DateTime   @updatedAt
+  sales       Sale[]
+
+  @@index([productId])
+  @@index([costGroupId])
+  @@map("product_variations")
 }

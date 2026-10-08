@@ -28,7 +28,7 @@ export async function listSales(query: ListSalesQuery) {
 
   return prisma.sale.findMany({
     where,
-    include: { product: true },
+    include: { product: true, variation: { select: { id: true, name: true } } },
     orderBy: { saleDate: "desc" },
   });
 }

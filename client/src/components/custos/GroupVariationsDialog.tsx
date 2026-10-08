@@ -3,35 +3,33 @@ import { X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { SearchInput } from "@/components/shared/SearchInput";
-import { CostProductRow } from "@/components/custos/CostProductRow";
-import { useProducts } from "@/hooks/useProducts";
-import { useRemoveCostGroupProduct } from "@/hooks/useCostGroups";
+import { CostVariationRow } from "@/components/custos/CostVariationRow";
+import { useCostVariations, useRemoveCostGroupVariation } from "@/hooks/useCostGroups";
 import { toast } from "@/stores/toastStore";
 import { ApiError } from "@/lib/api";
 import { CostGroup } from "@/types";
 
-interface GroupProductsDialogProps {
+interface GroupVariationsDialogProps {
   group: CostGroup | null;
   shopNames: Map<string, string>;
   onOpenChange: (open: boolean) => void;
 }
 
-export function GroupProductsDialog({ group, shopNames, onOpenChange }: GroupProductsDialogProps) {
+export function GroupVariationsDialog({ group, shopNames, onOpenChange }: GroupVariationsDialogProps) {
   const [search, setSearch] = useState("");
-  const { data: products, isLoading } = useProducts({
-    costGroupId: group?.id,
-    search: search || undefined,
-    active: true,
-  }, { enabled: !!group });
-  const removeProduct = useRemoveCostGroupProduct();
+  const { data: variations, isLoading } = useCostVariations(
+    { groupId: group?.id, search: search || undefined },
+    !!group
+  );
+  const removeVariation = useRemoveCostGroupVariation();
 
-  async function handleRemove(productId: string) {
+  async function handleRemove(variationId: string) {
     if (!group) return;
     try {
-      await removeProduct.mutateAsync({ id: group.id, productId });
+      await removeVariation.mutateAsync({ id: group.id, variationId });
     } catch (err) {
       toast({
-        title: "Não foi possível tirar o produto do grupo",
+        title: "Não foi possível tirar a variação do grupo",
         description: err instanceof ApiError ? err.message : undefined,
         variant: "destructive",
       });
@@ -48,31 +46,31 @@ export function GroupProductsDialog({ group, shopNames, onOpenChange }: GroupPro
     >
       <DialogContent className="max-w-2xl">
         <DialogHeader>
-          <DialogTitle>Produtos em {group?.name}</DialogTitle>
-          <DialogDescription>Produto tirado do grupo mantém o último custo e volta para a lista "sem grupo".</DialogDescription>
+          <DialogTitle>Variações em {group?.name}</DialogTitle>
+          <DialogDescription>Variação tirada do grupo mantém o último custo e volta para a lista "sem grupo".</DialogDescription>
         </DialogHeader>
 
-        <SearchInput value={search} onChange={setSearch} placeholder="Buscar neste grupo..." />
+        <SearchInput value={search} onChange={setSearch} placeholder="Buscar anúncio neste grupo..." />
 
         <div className="max-h-[50vh] divide-y overflow-y-auto rounded-md border">
           {isLoading || !group ? (
             <p className="p-4 text-sm text-muted-foreground">Carregando...</p>
-          ) : !products?.length ? (
-            <p className="p-4 text-sm text-muted-foreground">Nenhum produto neste grupo.</p>
+          ) : !variations?.length ? (
+            <p className="p-4 text-sm text-muted-foreground">Nenhuma variação neste grupo.</p>
           ) : (
-            products.map((product) => (
-              <CostProductRow
-                key={product.id}
-                product={product}
-                shopName={product.shopeeShopId ? shopNames.get(product.shopeeShopId) : undefined}
+            variations.map((variation) => (
+              <CostVariationRow
+                key={variation.id}
+                variation={variation}
+                shopName={variation.product.shopeeShopId ? shopNames.get(variation.product.shopeeShopId) : undefined}
                 trailing={
                   <Button
                     type="button"
                     variant="ghost"
                     size="icon"
                     title="Tirar do grupo"
-                    onClick={() => handleRemove(product.id)}
-                    disabled={removeProduct.isPending}
+                    onClick={() => handleRemove(variation.id)}
+                    disabled={removeVariation.isPending}
                   >
                     <X className="h-4 w-4" />
                   </Button>

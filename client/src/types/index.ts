@@ -53,8 +53,6 @@ export interface Product {
   active: boolean;
   shopeeShopId: string | null;
   shopeeSku: string | null;
-  costGroupId: string | null;
-  costGroup?: { id: string; name: string } | null;
   createdAt: string;
   updatedAt: string;
   salesCount?: number;
@@ -108,6 +106,7 @@ export interface Sale {
   unitCostAtSale: number;
   profit: number;
   origin: SaleOrigin;
+  variation?: { id: string; name: string } | null;
   saleDate: string;
   createdAt: string;
 }
@@ -178,7 +177,18 @@ export interface CostGroup {
   id: string;
   name: string;
   cost: number;
-  productCount: number;
+  variationCount: number;
   createdAt: string;
   updatedAt: string;
+}
+
+// Variação de um anúncio da Shopee, com o seu grupo de custo
+export interface CostVariation {
+  id: string;
+  name: string;
+  shopeeSku: string | null;
+  costGroupId: string | null;
+  costPrice: number;
+  product: { id: string; name: string; imageUrl: string | null; shopeeShopId: string | null };
+  costGroup: { id: string; name: string } | null;
 }

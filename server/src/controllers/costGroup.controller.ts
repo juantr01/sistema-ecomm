@@ -34,17 +34,25 @@ export async function deleteHandler(req: Request, res: Response, next: NextFunct
   }
 }
 
-export async function addProductsHandler(req: Request, res: Response, next: NextFunction) {
+export async function listVariationsHandler(req: Request, res: Response, next: NextFunction) {
   try {
-    res.json(await costGroupService.addProducts(req.params.id, req.body));
+    res.json(await costGroupService.listVariations(req.query as any));
   } catch (err) {
     next(err);
   }
 }
 
-export async function removeProductHandler(req: Request, res: Response, next: NextFunction) {
+export async function addVariationsHandler(req: Request, res: Response, next: NextFunction) {
   try {
-    await costGroupService.removeProduct(req.params.id, req.params.productId);
+    res.json(await costGroupService.addVariations(req.params.id, req.body));
+  } catch (err) {
+    next(err);
+  }
+}
+
+export async function removeVariationHandler(req: Request, res: Response, next: NextFunction) {
+  try {
+    await costGroupService.removeVariation(req.params.id, req.params.variationId);
     res.status(204).send();
   } catch (err) {
     next(err);

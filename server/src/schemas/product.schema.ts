@@ -24,9 +24,6 @@ export const listProductsQuerySchema = z.object({
   search: z.string().optional(),
   categoryId: z.string().optional(),
   shopId: z.string().optional(),
-  costGroupId: z.string().optional(),
-  // "true" lista só produtos que ainda não estão em nenhum grupo de custo
-  withoutCostGroup: z.enum(["true", "false"]).optional(),
   lowStock: z.coerce.boolean().optional(),
   active: z.coerce.boolean().optional(),
 });

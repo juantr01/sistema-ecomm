@@ -1,19 +1,20 @@
 import { ReactNode } from "react";
 import { ImageOff } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
-import { Product } from "@/types";
+import { CostVariation } from "@/types";
 
-interface CostProductRowProps {
-  product: Product;
+interface CostVariationRowProps {
+  variation: CostVariation;
   shopName?: string;
   // checkbox (seleção) ou botão de ação, à esquerda/direita da linha
   leading?: ReactNode;
   trailing?: ReactNode;
-  // destaca o grupo atual quando o produto já está em outro grupo
+  // mostra o grupo atual quando a variação já está em outro grupo
   showCurrentGroup?: boolean;
 }
 
-export function CostProductRow({ product, shopName, leading, trailing, showCurrentGroup }: CostProductRowProps) {
+export function CostVariationRow({ variation, shopName, leading, trailing, showCurrentGroup }: CostVariationRowProps) {
+  const { product } = variation;
   return (
     <div className="flex items-center gap-3 px-3 py-2">
       {leading}
@@ -25,17 +26,18 @@ export function CostProductRow({ product, shopName, leading, trailing, showCurre
         </div>
       )}
       <div className="min-w-0 flex-1">
-        <p className="truncate text-sm font-medium" title={product.name}>
+        <p className="truncate text-sm" title={product.name}>
           {product.name}
         </p>
         <div className="flex flex-wrap items-center gap-1.5 text-xs text-muted-foreground">
+          <span className="font-medium text-foreground">{variation.name || "Sem variação"}</span>
           {shopName && (
             <Badge variant="secondary" className="px-1.5 py-0 text-[10px]">
               {shopName}
             </Badge>
           )}
-          <span>{product.shopeeSku ?? product.sku}</span>
-          {showCurrentGroup && product.costGroup && <span>· no grupo {product.costGroup.name}</span>}
+          {variation.shopeeSku && <span>{variation.shopeeSku}</span>}
+          {showCurrentGroup && variation.costGroup && <span>· no grupo {variation.costGroup.name}</span>}
         </div>
       </div>
       {trailing}
