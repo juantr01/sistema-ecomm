@@ -6,14 +6,17 @@ export interface ProductFilters {
   search?: string;
   categoryId?: string;
   shopId?: string;
+  costGroupId?: string;
+  withoutCostGroup?: "true";
   lowStock?: boolean;
   active?: boolean;
 }
 
-export function useProducts(filters: ProductFilters = {}) {
+export function useProducts(filters: ProductFilters = {}, options: { enabled?: boolean } = {}) {
   return useQuery({
     queryKey: ["products", filters],
     queryFn: () => api.get<Product[]>(`/products${buildQuery(filters)}`),
+    enabled: options.enabled,
   });
 }
 

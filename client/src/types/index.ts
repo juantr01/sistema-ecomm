@@ -53,6 +53,8 @@ export interface Product {
   active: boolean;
   shopeeShopId: string | null;
   shopeeSku: string | null;
+  costGroupId: string | null;
+  costGroup?: { id: string; name: string } | null;
   createdAt: string;
   updatedAt: string;
   salesCount?: number;
@@ -170,4 +172,13 @@ export interface ExpenseBySupplierReport {
   supplierId: string;
   supplierName: string;
   total: number;
+}
+
+export interface CostGroup {
+  id: string;
+  name: string;
+  cost: number;
+  productCount: number;
+  createdAt: string;
+  updatedAt: string;
 }

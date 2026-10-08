@@ -73,6 +73,8 @@ model Product {
   shopeeShopId     String?
   // SKU do anúncio na Shopee (pode repetir entre anúncios); o sku do produto é único no sistema
   shopeeSku        String?
+  costGroupId      String?
+  costGroup        CostGroup?        @relation(fields: [costGroupId], references: [id], onDelete: SetNull)
   createdAt        DateTime          @default(now())
   updatedAt        DateTime          @updatedAt
 
@@ -80,10 +82,11 @@ model Product {
   sales          Sale[]
   stockMovements StockMovement[]
 
-  @@map("products")
   @@index([categoryId])
   @@index([groupId])
   @@index([shopeeShopId])
+  @@index([costGroupId])
+  @@map("products")
 }
 
 model ProductGroup {
@@ -122,8 +125,8 @@ model Purchase {
   items        PurchaseItem[]
   expense      Expense?
 
-  @@map("purchases")
   @@index([supplierId])
+  @@map("purchases")
 }
 
 model PurchaseItem {
@@ -136,9 +139,9 @@ model PurchaseItem {
   unitCost   Decimal  @db.Decimal(12, 2)
   subtotal   Decimal  @db.Decimal(12, 2)
 
-  @@map("purchase_items")
   @@index([purchaseId])
   @@index([productId])
+  @@map("purchase_items")
 }
 
 enum SaleOrigin {
@@ -160,10 +163,10 @@ model Sale {
   saleDate       DateTime
   createdAt      DateTime   @default(now())
 
-  @@map("sales")
+  @@unique([shopeeOrderSn, productId])
   @@index([productId])
   @@index([saleDate])
-  @@unique([shopeeOrderSn, productId])
+  @@map("sales")
 }
 
 model ShopeeShop {
@@ -207,9 +210,9 @@ model Expense {
   purchase    Purchase?       @relation(fields: [purchaseId], references: [id])
   createdAt   DateTime        @default(now())
 
-  @@map("expenses")
   @@index([date])
   @@index([category])
+  @@map("expenses")
 }
 
 enum StockMovementType {
@@ -228,6 +231,18 @@ model StockMovement {
   reason        String?
   createdAt     DateTime          @default(now())
 
-  @@map("stock_movements")
   @@index([productId])
+  @@map("stock_movements")
+}
+
+// Grupo de custo (ex.: "Moletom Adulto" = R$ 39): os produtos do grupo herdam o custo
+model CostGroup {
+  id        String    @id @default(cuid())
+  name      String
+  cost      Decimal   @db.Decimal(12, 2)
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  products  Product[]
+
+  @@map("cost_groups")
 }

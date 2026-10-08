@@ -20,6 +20,7 @@ import Despesas from "@/pages/despesas/Despesas";
 import Relatorios from "@/pages/relatorios/Relatorios";
 import Configuracoes from "@/pages/configuracoes/Configuracoes";
 import ShopeeCallback from "@/pages/shopee/Callback";
+import Custos from "@/pages/custos/Custos";
 
 export default function App() {
   return (
@@ -47,6 +48,8 @@ export default function App() {
 
             <Route path="vendas" element={<VendasLista />} />
             <Route path="vendas/novo" element={<VendaForm />} />
+
+            <Route path="custos" element={<Custos />} />
 
             <Route path="despesas" element={<Despesas />} />
             <Route path="relatorios" element={<Relatorios />} />

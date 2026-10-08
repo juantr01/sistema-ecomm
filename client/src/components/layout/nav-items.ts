@@ -9,6 +9,7 @@ import {
   Wallet,
   BarChart3,
   Settings,
+  Tags,
 } from "lucide-react";
 
 export interface NavItem {
@@ -21,6 +22,7 @@ export interface NavItem {
 export const NAV_ITEMS: NavItem[] = [
   { to: "/", label: "Dashboard", icon: LayoutDashboard, end: true },
   { to: "/produtos", label: "Produtos da Loja", icon: Package },
+  { to: "/custos", label: "Custos", icon: Tags },
   { to: "/estoque", label: "Estoque Próprio", icon: Boxes },
   { to: "/compras", label: "Compras", icon: ShoppingCart },
   { to: "/fornecedores", label: "Fornecedores", icon: Truck },
