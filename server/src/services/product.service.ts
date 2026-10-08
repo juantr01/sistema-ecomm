@@ -9,6 +9,9 @@ export async function listProducts(query: ListProductsQuery) {
   if (query.active !== undefined) {
     where.active = query.active;
   }
+  if (query.shopId) {
+    where.shopeeShopId = query.shopId;
+  }
   if (query.categoryId) {
     where.categoryId = query.categoryId;
   }

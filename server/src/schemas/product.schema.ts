@@ -23,6 +23,7 @@ export const updateProductSchema = createProductSchema.partial().extend({
 export const listProductsQuerySchema = z.object({
   search: z.string().optional(),
   categoryId: z.string().optional(),
+  shopId: z.string().optional(),
   lowStock: z.coerce.boolean().optional(),
   active: z.coerce.boolean().optional(),
 });

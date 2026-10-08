@@ -10,6 +10,8 @@ import { EmptyState } from "@/components/shared/EmptyState";
 import { ConfirmDialog } from "@/components/shared/ConfirmDialog";
 import { useProducts, useDeleteProduct } from "@/hooks/useProducts";
 import { useCategories } from "@/hooks/useCategories";
+import { useShopeeStatus } from "@/hooks/useShopee";
+import { useShopFilter } from "@/stores/shopFilterStore";
 import { formatCurrency } from "@/lib/format";
 import { toast } from "@/stores/toastStore";
 
@@ -21,9 +23,13 @@ export default function ProdutosLista() {
   const [deleteId, setDeleteId] = useState<string | null>(null);
 
   const { data: categories } = useCategories();
+  const shopId = useShopFilter();
+  const { data: shopeeStatus } = useShopeeStatus();
+  const shopNames = new Map(shopeeStatus?.shops.map((s) => [s.shopId, s.shopName ?? s.shopId]));
   const { data: products, isLoading } = useProducts({
     search: search || undefined,
     categoryId: categoryId === "all" ? undefined : categoryId,
+    shopId,
     lowStock: lowStock || undefined,
     active: true,
   });
@@ -44,7 +50,14 @@ export default function ProdutosLista() {
   return (
     <div className="space-y-4">
       <div className="flex flex-wrap items-center justify-between gap-3">
-        <h1 className="text-xl font-semibold">Produtos da Loja</h1>
+        <h1 className="text-xl font-semibold">
+          Produtos da Loja
+          {products && (
+            <span className="ml-2 text-sm font-normal text-muted-foreground">
+              · {products.length} {products.length === 1 ? "produto" : "produtos"}
+            </span>
+          )}
+        </h1>
         <Button onClick={() => navigate("/produtos/novo")}>
           <Plus className="h-4 w-4" /> Novo produto
         </Button>
@@ -119,6 +132,11 @@ export default function ProdutosLista() {
                       )}
                     </TableCell>
                     <TableCell className="font-medium">
+                      {product.shopeeShopId && shopNames.has(product.shopeeShopId) && (
+                        <Badge variant="secondary" className="mr-2 whitespace-nowrap align-middle">
+                          {shopNames.get(product.shopeeShopId)}
+                        </Badge>
+                      )}
                       {product.name}
                       {product.color && <span className="text-muted-foreground"> · {product.color}</span>}
                       {product.size && <span className="text-muted-foreground"> · {product.size}</span>}

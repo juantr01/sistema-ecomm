@@ -5,6 +5,7 @@ import { Product } from "@/types";
 export interface ProductFilters {
   search?: string;
   categoryId?: string;
+  shopId?: string;
   lowStock?: boolean;
   active?: boolean;
 }
