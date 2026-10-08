@@ -8,7 +8,9 @@ import { SearchInput } from "@/components/shared/SearchInput";
 import { DateRange } from "@/components/shared/DateRangeFilter";
 import { EmptyState } from "@/components/shared/EmptyState";
 import { ConfirmDialog } from "@/components/shared/ConfirmDialog";
+import { Badge } from "@/components/ui/badge";
 import { useSales, useDeleteSale } from "@/hooks/useSales";
+import { useShopeeStatus } from "@/hooks/useShopee";
 import { formatCurrency, formatDate, toInputDate } from "@/lib/format";
 import { toast } from "@/stores/toastStore";
 import { ApiError } from "@/lib/api";
@@ -52,6 +54,8 @@ export default function VendasLista() {
   const totalAmount = sales?.reduce((sum, s) => sum + Number(s.totalAmount), 0) ?? 0;
   const totalProfit = sales?.reduce((sum, s) => sum + Number(s.profit), 0) ?? 0;
   const deleteSale = useDeleteSale();
+  const { data: shopeeStatus } = useShopeeStatus();
+  const shopNames = new Map(shopeeStatus?.shops.map((s) => [s.shopId, s.shopName ?? s.shopId]));
 
   async function handleDelete() {
     if (!deleteId) return;
@@ -134,7 +138,14 @@ export default function VendasLista() {
               {sales.map((sale) => (
                 <TableRow key={sale.id}>
                   <TableCell className="text-muted-foreground">{formatDate(sale.saleDate)}</TableCell>
-                  <TableCell className="font-medium">{sale.product?.name}</TableCell>
+                  <TableCell className="font-medium">
+                    {sale.product?.shopeeShopId && shopNames.has(sale.product.shopeeShopId) && (
+                      <Badge variant="secondary" className="mr-2 whitespace-nowrap align-middle">
+                        {shopNames.get(sale.product.shopeeShopId)}
+                      </Badge>
+                    )}
+                    {sale.product?.name}
+                  </TableCell>
                   <TableCell>{sale.quantity}</TableCell>
                   <TableCell>{formatCurrency(Number(sale.totalAmount))}</TableCell>
                   <TableCell className={Number(sale.profit) >= 0 ? "text-success" : "text-destructive"}>
