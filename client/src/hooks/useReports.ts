@@ -1,5 +1,6 @@
 import { useQuery } from "@tanstack/react-query";
 import { api, buildQuery } from "@/lib/api";
+import { useShopFilter } from "@/stores/shopFilterStore";
 import { ExpenseBySupplierReport, Product, SalesSummaryReport, TopProductReport } from "@/types";
 
 export interface ReportRange {
@@ -8,16 +9,18 @@ export interface ReportRange {
 }
 
 export function useSalesSummaryReport(range: ReportRange) {
+  const shopId = useShopFilter();
   return useQuery({
-    queryKey: ["reports", "sales-summary", range],
-    queryFn: () => api.get<SalesSummaryReport>(`/reports/sales-summary${buildQuery(range)}`),
+    queryKey: ["reports", "sales-summary", range, shopId],
+    queryFn: () => api.get<SalesSummaryReport>(`/reports/sales-summary${buildQuery({ ...range, shopId })}`),
   });
 }
 
 export function useTopProductsReport(range: ReportRange, limit = 10) {
+  const shopId = useShopFilter();
   return useQuery({
-    queryKey: ["reports", "top-products", range, limit],
-    queryFn: () => api.get<TopProductReport[]>(`/reports/top-products${buildQuery({ ...range, limit })}`),
+    queryKey: ["reports", "top-products", range, limit, shopId],
+    queryFn: () => api.get<TopProductReport[]>(`/reports/top-products${buildQuery({ ...range, limit, shopId })}`),
   });
 }
 

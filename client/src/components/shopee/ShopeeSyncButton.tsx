@@ -17,14 +17,17 @@ export function ShopeeSyncButton({ compact }: ShopeeSyncButtonProps) {
 
   async function handleSync() {
     try {
-      const { products, orders } = await shopeeSync.mutateAsync();
+      const { products, orders, failures } = await shopeeSync.mutateAsync();
       const skipped = orders.skipped.length
         ? ` Não importados: ${orders.skipped.map((s) => `${s.orderSn} (${s.reason})`).join(", ")}.`
         : "";
+      const failed = failures.length
+        ? ` Não foi possível sincronizar: ${failures.map((f) => `${f.shopName} (${f.message})`).join(", ")}.`
+        : "";
       toast({
-        title: "Sincronização concluída",
-        description: `Produtos: ${products.created} novos, ${products.updated} atualizados. Pedidos encontrados: ${orders.found}. Vendas: ${orders.created} importadas, ${orders.updated} atualizadas, ${orders.removed} removidas (canceladas).${skipped}`,
-        variant: "success",
+        title: failures.length ? "Sincronização concluída com falhas" : "Sincronização concluída",
+        description: `Produtos: ${products.created} novos, ${products.updated} atualizados. Pedidos encontrados: ${orders.found}. Vendas: ${orders.created} importadas, ${orders.updated} atualizadas, ${orders.removed} removidas (canceladas).${skipped}${failed}`,
+        variant: failures.length ? "destructive" : "success",
       });
     } catch (err) {
       toast({

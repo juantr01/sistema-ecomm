@@ -1,9 +1,15 @@
 import { prisma } from "../config/prisma";
 import { parseDateRange } from "../utils/dateRange";
 
+// Vendas filtradas pela loja Shopee de origem do produto; despesas e compras não têm loja
+function shopFilter(shopId?: string) {
+  return shopId ? { product: { shopeeShopId: shopId } } : {};
+}
+
 interface RangeQuery {
   from?: string;
   to?: string;
+  shopId?: string;
 }
 
 export async function getSalesSummary(query: RangeQuery) {
@@ -12,7 +18,7 @@ export async function getSalesSummary(query: RangeQuery) {
 
   const [salesAgg, allExpensesAgg, manualExpensesAgg] = await Promise.all([
     prisma.sale.aggregate({
-      where: dateFilter ? { saleDate: dateFilter } : {},
+      where: { ...(dateFilter ? { saleDate: dateFilter } : {}), ...shopFilter(query.shopId) },
       _sum: { totalAmount: true, profit: true },
     }),
     prisma.expense.aggregate({
@@ -44,7 +50,7 @@ export async function getTopProducts(query: RangeQuery & { limit?: number }) {
 
   const grouped = await prisma.sale.groupBy({
     by: ["productId"],
-    where: dateFilter ? { saleDate: dateFilter } : {},
+    where: { ...(dateFilter ? { saleDate: dateFilter } : {}), ...shopFilter(query.shopId) },
     _sum: { quantity: true, totalAmount: true, profit: true },
     orderBy: { _sum: { quantity: "desc" } },
     take: limit,

@@ -11,6 +11,7 @@ export const createSaleSchema = z.object({
 
 export const listSalesQuerySchema = z.object({
   productId: z.string().optional(),
+  shopId: z.string().optional(),
   search: z.string().optional(),
   from: z.string().optional(),
   to: z.string().optional(),

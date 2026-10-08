@@ -27,9 +27,9 @@ export async function callbackHandler(req: Request, res: Response, next: NextFun
   }
 }
 
-export async function disconnectHandler(_req: Request, res: Response, next: NextFunction) {
+export async function disconnectHandler(req: Request, res: Response, next: NextFunction) {
   try {
-    await shopeeService.disconnect();
+    await shopeeService.disconnect(req.params.shopId);
     res.status(204).send();
   } catch (err) {
     next(err);
@@ -38,9 +38,7 @@ export async function disconnectHandler(_req: Request, res: Response, next: Next
 
 export async function syncHandler(_req: Request, res: Response, next: NextFunction) {
   try {
-    const products = await shopeeService.syncProducts();
-    const orders = await shopeeService.syncOrders();
-    res.json({ products, orders });
+    res.json(await shopeeService.syncAllShops());
   } catch (err) {
     next(err);
   }

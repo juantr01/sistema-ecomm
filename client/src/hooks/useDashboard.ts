@@ -1,11 +1,13 @@
 import { useQuery } from "@tanstack/react-query";
-import { api } from "@/lib/api";
+import { api, buildQuery } from "@/lib/api";
+import { useShopFilter } from "@/stores/shopFilterStore";
 import { DashboardSummary } from "@/types";
 
 export function useDashboardSummary() {
+  const shopId = useShopFilter();
   return useQuery({
-    queryKey: ["dashboard", "summary"],
-    queryFn: () => api.get<DashboardSummary>("/dashboard/summary"),
+    queryKey: ["dashboard", "summary", shopId],
+    queryFn: () => api.get<DashboardSummary>(`/dashboard/summary${buildQuery({ shopId })}`),
   });
 }
 
@@ -16,8 +18,9 @@ export interface RevenueTrendPoint {
 }
 
 export function useRevenueTrend(days = 30) {
+  const shopId = useShopFilter();
   return useQuery({
-    queryKey: ["dashboard", "revenue-trend", days],
-    queryFn: () => api.get<RevenueTrendPoint[]>(`/dashboard/revenue-trend?days=${days}`),
+    queryKey: ["dashboard", "revenue-trend", days, shopId],
+    queryFn: () => api.get<RevenueTrendPoint[]>(`/dashboard/revenue-trend${buildQuery({ days, shopId })}`),
   });
 }

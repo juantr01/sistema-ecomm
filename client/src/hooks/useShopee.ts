@@ -1,13 +1,16 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { api } from "@/lib/api";
 
+export interface ShopeeShopStatus {
+  shopId: string;
+  shopName: string | null;
+  lastProductSyncAt: string | null;
+  lastOrderSyncAt: string | null;
+}
+
 interface ShopeeStatus {
   connected: boolean;
-  shopId?: string;
-  shopName?: string;
-  lastProductSyncAt?: string | null;
-  lastOrderSyncAt?: string | null;
-  otherShops?: { shopId: string; shopName: string | null }[];
+  shops: ShopeeShopStatus[];
 }
 
 interface ShopeeSyncResult {
@@ -19,6 +22,8 @@ interface ShopeeSyncResult {
     removed: number;
     skipped: { orderSn: string; reason: string }[];
   };
+  // Lojas que falharam enquanto as outras sincronizaram
+  failures: { shopName: string; message: string }[];
 }
 
 export function useShopeeStatus() {
@@ -48,7 +53,7 @@ export function useShopeeCallback() {
 export function useDisconnectShopee() {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: () => api.delete<void>("/shopee/connection"),
+    mutationFn: (shopId: string) => api.delete<void>(`/shopee/connection/${shopId}`),
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ["shopee", "status"] }),
   });
 }

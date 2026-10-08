@@ -11,7 +11,7 @@ import { ConfirmDialog } from "@/components/shared/ConfirmDialog";
 import { formatDateTime } from "@/lib/format";
 import { useCategories, useCreateCategory, useDeleteCategory } from "@/hooks/useCategories";
 import { useChangePassword } from "@/hooks/useAuth";
-import { useShopeeStatus, useConnectShopee, useDisconnectShopee } from "@/hooks/useShopee";
+import { useShopeeStatus, useConnectShopee, useDisconnectShopee, ShopeeShopStatus } from "@/hooks/useShopee";
 import { ShopeeSyncButton } from "@/components/shopee/ShopeeSyncButton";
 import { toast } from "@/stores/toastStore";
 import { ApiError } from "@/lib/api";
@@ -32,7 +32,7 @@ type PasswordValues = z.infer<typeof passwordSchema>;
 export default function Configuracoes() {
   const [newCategory, setNewCategory] = useState("");
   const [deleteId, setDeleteId] = useState<string | null>(null);
-  const [confirmDisconnect, setConfirmDisconnect] = useState(false);
+  const [disconnectShop, setDisconnectShop] = useState<ShopeeShopStatus | null>(null);
 
   const { data: categories } = useCategories();
   const createCategory = useCreateCategory();
@@ -82,7 +82,8 @@ export default function Configuracoes() {
 
   async function handleDisconnectShopee() {
     try {
-      await disconnectShopee.mutateAsync();
+      if (!disconnectShop) return;
+      await disconnectShopee.mutateAsync(disconnectShop.shopId);
       toast({ title: "Loja Shopee desconectada", variant: "success" });
     } catch (err) {
       toast({
@@ -91,7 +92,7 @@ export default function Configuracoes() {
         variant: "destructive",
       });
     } finally {
-      setConfirmDisconnect(false);
+      setDisconnectShop(null);
     }
   }
 
@@ -118,41 +119,33 @@ export default function Configuracoes() {
           <CardTitle>Integração Shopee</CardTitle>
           <CardDescription>
             {shopeeStatus?.connected
-              ? "Sincronize produtos e vendas da sua loja Shopee com o sistema."
+              ? "Sincronize produtos e vendas das suas lojas Shopee com o sistema."
               : "Conecte sua loja Shopee para sincronizar produtos e vendas automaticamente."}
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-3">
           {shopeeStatus?.connected ? (
             <>
-              <div className="space-y-1 text-sm text-muted-foreground">
-                <p>
-                  Loja conectada: <span className="text-foreground">{shopeeStatus.shopName ?? shopeeStatus.shopId}</span>
-                </p>
-                <p>
-                  Última sincronização de produtos:{" "}
-                  {shopeeStatus.lastProductSyncAt ? formatDateTime(shopeeStatus.lastProductSyncAt) : "nunca"}
-                </p>
-                <p>
-                  Última sincronização de vendas:{" "}
-                  {shopeeStatus.lastOrderSyncAt ? formatDateTime(shopeeStatus.lastOrderSyncAt) : "nunca"}
-                </p>
-                {!!shopeeStatus.otherShops?.length && (
-                  <p>
-                    Outras lojas conectadas (ainda não sincronizadas):{" "}
-                    <span className="text-foreground">
-                      {shopeeStatus.otherShops.map((s) => s.shopName ?? s.shopId).join(", ")}
-                    </span>
-                  </p>
-                )}
+              <div className="divide-y rounded-md border">
+                {shopeeStatus.shops.map((shop) => (
+                  <div key={shop.shopId} className="flex flex-wrap items-center justify-between gap-2 p-3">
+                    <div className="space-y-0.5 text-sm text-muted-foreground">
+                      <p className="font-medium text-foreground">{shop.shopName ?? shop.shopId}</p>
+                      <p>
+                        Produtos: {shop.lastProductSyncAt ? formatDateTime(shop.lastProductSyncAt) : "nunca"} · Vendas:{" "}
+                        {shop.lastOrderSyncAt ? formatDateTime(shop.lastOrderSyncAt) : "nunca"}
+                      </p>
+                    </div>
+                    <Button type="button" variant="outline" size="sm" onClick={() => setDisconnectShop(shop)}>
+                      Desconectar
+                    </Button>
+                  </div>
+                ))}
               </div>
               <div className="flex flex-wrap gap-2">
                 <ShopeeSyncButton />
                 <Button type="button" variant="outline" onClick={() => connectShopee.mutate()} disabled={connectShopee.isPending}>
                   {connectShopee.isPending ? "Conectando..." : "Conectar outra loja"}
-                </Button>
-                <Button type="button" variant="outline" onClick={() => setConfirmDisconnect(true)}>
-                  Desconectar
                 </Button>
               </div>
             </>
@@ -237,10 +230,10 @@ export default function Configuracoes() {
       />
 
       <ConfirmDialog
-        open={confirmDisconnect}
-        onOpenChange={setConfirmDisconnect}
-        title="Desconectar loja Shopee?"
-        description="Produtos e vendas já sincronizados continuam no sistema. Depois você pode conectar outra loja."
+        open={!!disconnectShop}
+        onOpenChange={(open) => !open && setDisconnectShop(null)}
+        title={`Desconectar ${disconnectShop?.shopName ?? "loja Shopee"}?`}
+        description="Produtos e vendas já sincronizados continuam no sistema. Você pode conectar a loja de novo depois."
         confirmLabel="Desconectar"
         onConfirm={handleDisconnectShopee}
         loading={disconnectShopee.isPending}

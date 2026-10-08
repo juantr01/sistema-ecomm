@@ -1,3 +1,4 @@
+import { ShopeeShop } from "@prisma/client";
 import { prisma } from "../config/prisma";
 import { env } from "../config/env";
 import { AppError } from "../utils/AppError";
@@ -68,10 +69,8 @@ export async function handleOAuthCallback(code: string, shopId: string) {
   });
 }
 
-// Enquanto o sync não suporta várias lojas, só a primeira conectada é sincronizada;
-// as demais ficam apenas autorizadas
-export async function getConnectedShop() {
-  return prisma.shopeeShop.findFirst({ orderBy: { createdAt: "asc" } });
+async function listShops() {
+  return prisma.shopeeShop.findMany({ orderBy: { createdAt: "asc" } });
 }
 
 async function getValidAccessToken(shop: { shopId: string; accessToken: string; refreshToken: string; accessTokenExpiresAt: Date }): Promise<string> {
@@ -95,12 +94,21 @@ async function getValidAccessToken(shop: { shopId: string; accessToken: string; 
   return data.access_token;
 }
 
-async function requireConnectedShop() {
-  const shop = await getConnectedShop();
-  if (!shop) {
-    throw new AppError("Nenhuma loja Shopee conectada", 400);
-  }
-  return shop;
+// O item_id é único em toda a Shopee; o SKU só identifica o produto dentro da mesma loja
+// (ou um produto cadastrado à mão que ainda não foi vinculado a nenhuma loja)
+async function findShopProduct(shopId: string, shopeeItemId: string, sku: string) {
+  return (
+    (await prisma.product.findUnique({ where: { shopeeItemId } })) ??
+    (await prisma.product.findFirst({
+      where: { sku, OR: [{ shopeeShopId: shopId }, { shopeeShopId: null, shopeeItemId: null }] },
+    }))
+  );
+}
+
+// O SKU é único no sistema todo; se outra loja já usa o mesmo SKU, diferencia pelo id da loja
+async function availableSku(sku: string, shopId: string) {
+  const taken = await prisma.product.findUnique({ where: { sku } });
+  return taken ? `${sku}-${shopId}` : sku;
 }
 
 interface ShopeeItemBaseInfo {
@@ -110,8 +118,7 @@ interface ShopeeItemBaseInfo {
   price_info?: { current_price?: number; original_price?: number }[];
 }
 
-export async function syncProducts() {
-  const shop = await requireConnectedShop();
+async function syncProducts(shop: ShopeeShop) {
   const accessToken = await getValidAccessToken(shop);
 
   const itemIds: number[] = [];
@@ -147,19 +154,23 @@ export async function syncProducts() {
       const price = item.price_info?.[0]?.current_price ?? item.price_info?.[0]?.original_price ?? 0;
       const sku = item.item_sku?.trim() || `shopee-${shopeeItemId}`;
 
-      const existing =
-        (await prisma.product.findUnique({ where: { shopeeItemId } })) ??
-        (await prisma.product.findUnique({ where: { sku } }));
+      const existing = await findShopProduct(shop.shopId, shopeeItemId, sku);
 
       if (existing) {
         await prisma.product.update({
           where: { id: existing.id },
-          data: { name: item.item_name, salePrice: price, shopeeItemId },
+          data: { name: item.item_name, salePrice: price, shopeeItemId, shopeeShopId: shop.shopId },
         });
         updated++;
       } else {
         await prisma.product.create({
-          data: { name: item.item_name, sku, salePrice: price, shopeeItemId },
+          data: {
+            name: item.item_name,
+            sku: await availableSku(sku, shop.shopId),
+            salePrice: price,
+            shopeeItemId,
+            shopeeShopId: shop.shopId,
+          },
         });
         created++;
       }
@@ -225,22 +236,22 @@ async function fetchOrderNetAmount(accessToken: string, shopId: string, orderSn:
   }
 }
 
-async function findOrCreateProductFromOrder(itemId: number, line: { name: string; sku?: string; unitPrice: number }) {
+async function findOrCreateProductFromOrder(shopId: string, itemId: number, line: { name: string; sku?: string; unitPrice: number }) {
   const shopeeItemId = String(itemId);
   const sku = line.sku?.trim() || `shopee-${shopeeItemId}`;
-  const existing =
-    (await prisma.product.findUnique({ where: { shopeeItemId } })) ?? (await prisma.product.findUnique({ where: { sku } }));
+  const existing = await findShopProduct(shopId, shopeeItemId, sku);
   if (existing) {
-    if (!existing.shopeeItemId) {
-      return prisma.product.update({ where: { id: existing.id }, data: { shopeeItemId } });
+    if (!existing.shopeeItemId || !existing.shopeeShopId) {
+      return prisma.product.update({ where: { id: existing.id }, data: { shopeeItemId, shopeeShopId: shopId } });
     }
     return existing;
   }
-  return prisma.product.create({ data: { name: line.name, sku, salePrice: line.unitPrice, shopeeItemId } });
+  return prisma.product.create({
+    data: { name: line.name, sku: await availableSku(sku, shopId), salePrice: line.unitPrice, shopeeItemId, shopeeShopId: shopId },
+  });
 }
 
-export async function syncOrders() {
-  const shop = await requireConnectedShop();
+async function syncOrders(shop: ShopeeShop) {
   const accessToken = await getValidAccessToken(shop);
 
   const now = Math.floor(Date.now() / 1000);
@@ -310,7 +321,7 @@ export async function syncOrders() {
 
       for (const [itemId, line] of linesByItem) {
         // Anúncios pausados/excluídos não vêm no sync de produtos; cria o produto a partir do pedido
-        const product = await findOrCreateProductFromOrder(itemId, line);
+        const product = await findOrCreateProductFromOrder(shop.shopId, itemId, line);
 
         const lineNet = grossTotal > 0 ? netAmount * (line.gross / grossTotal) : 0;
         const where = { shopeeOrderSn_productId: { shopeeOrderSn: order.order_sn, productId: product.id } };
@@ -350,27 +361,53 @@ export async function syncOrders() {
   return { found: uniqueOrderSns.length, created, updated, removed, skipped };
 }
 
-// Remove todas as conexões (inclusive a loja de teste do sandbox); produtos e vendas já sincronizados são mantidos
-export async function disconnect() {
-  await prisma.shopeeShop.deleteMany();
+// Sincroniza todas as lojas; se uma falhar (ex.: autorização expirada), as outras continuam
+export async function syncAllShops() {
+  const shops = await listShops();
+  if (!shops.length) {
+    throw new AppError("Nenhuma loja Shopee conectada", 400);
+  }
+
+  const products = { created: 0, updated: 0 };
+  const orders = { found: 0, created: 0, updated: 0, removed: 0, skipped: [] as { orderSn: string; reason: string }[] };
+  const failures: { shopName: string; message: string }[] = [];
+
+  for (const shop of shops) {
+    try {
+      const p = await syncProducts(shop);
+      const o = await syncOrders(shop);
+      products.created += p.created;
+      products.updated += p.updated;
+      orders.found += o.found;
+      orders.created += o.created;
+      orders.updated += o.updated;
+      orders.removed += o.removed;
+      orders.skipped.push(...o.skipped);
+    } catch (err) {
+      console.error(`Falha ao sincronizar a loja Shopee ${shop.shopId}:`, err);
+      failures.push({ shopName: shop.shopName ?? shop.shopId, message: err instanceof AppError ? err.message : "erro inesperado" });
+    }
+  }
+
+  if (failures.length === shops.length) {
+    throw new AppError(failures.map((f) => `${f.shopName}: ${f.message}`).join("; "), 502);
+  }
+
+  return { products, orders, failures };
+}
+
+// Remove só a autorização da loja; produtos e vendas já sincronizados são mantidos
+export async function disconnect(shopId: string) {
+  const result = await prisma.shopeeShop.deleteMany({ where: { shopId } });
+  if (!result.count) {
+    throw new AppError("Loja Shopee não encontrada", 404);
+  }
 }
 
 export async function getStatus() {
-  const shop = await getConnectedShop();
-  if (!shop) {
-    return { connected: false as const };
-  }
-  const otherShops = await prisma.shopeeShop.findMany({
-    where: { shopId: { not: shop.shopId } },
-    select: { shopId: true, shopName: true },
+  const shops = await prisma.shopeeShop.findMany({
+    select: { shopId: true, shopName: true, lastProductSyncAt: true, lastOrderSyncAt: true },
     orderBy: { createdAt: "asc" },
   });
-  return {
-    connected: true as const,
-    shopId: shop.shopId,
-    shopName: shop.shopName,
-    lastProductSyncAt: shop.lastProductSyncAt,
-    lastOrderSyncAt: shop.lastOrderSyncAt,
-    otherShops,
-  };
+  return { connected: shops.length > 0, shops };
 }

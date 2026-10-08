@@ -15,14 +15,15 @@ export async function listSales(query: ListSalesQuery) {
     if (from) where.saleDate.gte = from;
     if (to) where.saleDate.lte = to;
   }
+  const productWhere: Prisma.ProductWhereInput = {};
+  if (query.shopId) productWhere.shopeeShopId = query.shopId;
   if (query.search) {
-    where.product = {
-      OR: [
-        { name: { contains: query.search, mode: "insensitive" } },
-        { sku: { contains: query.search, mode: "insensitive" } },
-      ],
-    };
+    productWhere.OR = [
+      { name: { contains: query.search, mode: "insensitive" } },
+      { sku: { contains: query.search, mode: "insensitive" } },
+    ];
   }
+  if (query.shopId || query.search) where.product = productWhere;
 
   return prisma.sale.findMany({
     where,

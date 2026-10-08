@@ -1,7 +1,9 @@
 import { prisma } from "../config/prisma";
 import { startOfDay, endOfDay, startOfMonth, endOfMonth, toDateKey } from "../utils/dateRange";
 
-export async function getDashboardSummary() {
+export async function getDashboardSummary(shopId?: string) {
+  // Filtro por loja Shopee: vendas e produtos são da loja; despesas e estoque próprio continuam gerais
+  const shopFilter = shopId ? { product: { shopeeShopId: shopId } } : {};
   const now = new Date();
   const dayStart = startOfDay(now);
   const dayEnd = endOfDay(now);
@@ -10,25 +12,25 @@ export async function getDashboardSummary() {
 
   const [salesToday, salesMonth, expensesMonth, productCount, products, topProductsRaw] = await Promise.all([
     prisma.sale.aggregate({
-      where: { saleDate: { gte: dayStart, lte: dayEnd } },
+      where: { saleDate: { gte: dayStart, lte: dayEnd }, ...shopFilter },
       _sum: { totalAmount: true, profit: true },
     }),
     prisma.sale.aggregate({
-      where: { saleDate: { gte: monthStart, lte: monthEnd } },
+      where: { saleDate: { gte: monthStart, lte: monthEnd }, ...shopFilter },
       _sum: { totalAmount: true, profit: true },
     }),
     prisma.expense.aggregate({
       where: { date: { gte: monthStart, lte: monthEnd } },
       _sum: { amount: true },
     }),
-    prisma.product.count({ where: { active: true } }),
+    prisma.product.count({ where: { active: true, ...(shopId ? { shopeeShopId: shopId } : {}) } }),
     prisma.product.findMany({
       where: { active: true, sourceType: "OWN_STOCK" },
       select: { stockQuantity: true, minStock: true },
     }),
     prisma.sale.groupBy({
       by: ["productId"],
-      where: { saleDate: { gte: monthStart, lte: monthEnd } },
+      where: { saleDate: { gte: monthStart, lte: monthEnd }, ...shopFilter },
       _sum: { quantity: true, totalAmount: true },
       orderBy: { _sum: { quantity: "desc" } },
       take: 5,
@@ -64,12 +66,12 @@ export async function getDashboardSummary() {
   };
 }
 
-export async function getRevenueTrend(days = 30) {
+export async function getRevenueTrend(days = 30, shopId?: string) {
   const now = new Date();
   const from = startOfDay(new Date(now.getTime() - (days - 1) * 24 * 60 * 60 * 1000));
 
   const sales = await prisma.sale.findMany({
-    where: { saleDate: { gte: from } },
+    where: { saleDate: { gte: from }, ...(shopId ? { product: { shopeeShopId: shopId } } : {}) },
     select: { saleDate: true, totalAmount: true, profit: true },
   });
 

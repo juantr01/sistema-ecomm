@@ -12,6 +12,6 @@ router.get("/status", statusHandler);
 router.get("/auth-url", authUrlHandler);
 router.post("/callback", validate(shopeeCallbackSchema), callbackHandler);
 router.post("/sync", syncHandler);
-router.delete("/connection", disconnectHandler);
+router.delete("/connection/:shopId", disconnectHandler);
 
 export default router;

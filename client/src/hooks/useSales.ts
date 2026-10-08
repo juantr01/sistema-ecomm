@@ -1,6 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { api, buildQuery } from "@/lib/api";
 import { Sale } from "@/types";
+import { useShopFilter } from "@/stores/shopFilterStore";
 
 export interface SaleFilters {
   productId?: string;
@@ -10,9 +11,10 @@ export interface SaleFilters {
 }
 
 export function useSales(filters: SaleFilters = {}) {
+  const shopId = useShopFilter();
   return useQuery({
-    queryKey: ["sales", filters],
-    queryFn: () => api.get<Sale[]>(`/sales${buildQuery(filters)}`),
+    queryKey: ["sales", filters, shopId],
+    queryFn: () => api.get<Sale[]>(`/sales${buildQuery({ ...filters, shopId })}`),
   });
 }
 
