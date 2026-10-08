@@ -2,15 +2,16 @@ import { prisma } from "../config/prisma";
 import { startOfDay, endOfDay, startOfMonth, endOfMonth, toDateKey } from "../utils/dateRange";
 
 export async function getDashboardSummary(shopId?: string) {
-  // Filtro por loja Shopee: vendas e produtos são da loja; despesas e estoque próprio continuam gerais
-  const shopFilter = shopId ? { product: { shopeeShopId: shopId } } : {};
   const now = new Date();
   const dayStart = startOfDay(now);
   const dayEnd = endOfDay(now);
   const monthStart = startOfMonth(now);
   const monthEnd = endOfMonth(now);
 
-  const [salesToday, salesMonth, expensesMonth, productCount, products, topProductsRaw] = await Promise.all([
+  // Filtro por loja Shopee: só vendas de produtos daquela loja
+  const shopFilter = shopId ? { product: { shopeeShopId: shopId } } : {};
+
+  const [salesToday, salesMonth, ordersToday] = await Promise.all([
     prisma.sale.aggregate({
       where: { saleDate: { gte: dayStart, lte: dayEnd }, ...shopFilter },
       _sum: { totalAmount: true, profit: true },
@@ -19,50 +20,22 @@ export async function getDashboardSummary(shopId?: string) {
       where: { saleDate: { gte: monthStart, lte: monthEnd }, ...shopFilter },
       _sum: { totalAmount: true, profit: true },
     }),
-    prisma.expense.aggregate({
-      where: { date: { gte: monthStart, lte: monthEnd } },
-      _sum: { amount: true },
-    }),
-    prisma.product.count({ where: { active: true, ...(shopId ? { shopeeShopId: shopId } : {}) } }),
-    prisma.product.findMany({
-      where: { active: true, sourceType: "OWN_STOCK" },
-      select: { stockQuantity: true, minStock: true },
-    }),
-    prisma.sale.groupBy({
-      by: ["productId"],
-      where: { saleDate: { gte: monthStart, lte: monthEnd }, ...shopFilter },
-      _sum: { quantity: true, totalAmount: true },
-      orderBy: { _sum: { quantity: "desc" } },
-      take: 5,
+    prisma.sale.findMany({
+      where: { saleDate: { gte: dayStart, lte: dayEnd }, ...shopFilter },
+      select: { shopeeOrderSn: true },
     }),
   ]);
 
-  const lowStockCount = products.filter((p) => p.stockQuantity <= p.minStock).length;
-
-  const topProductIds = topProductsRaw.map((t) => t.productId);
-  const topProductsInfo = await prisma.product.findMany({ where: { id: { in: topProductIds } } });
-  const topProducts = topProductsRaw.map((t) => {
-    const product = topProductsInfo.find((p) => p.id === t.productId);
-    return {
-      product,
-      quantitySold: t._sum.quantity ?? 0,
-      totalAmount: Number(t._sum.totalAmount ?? 0),
-    };
-  });
-
-  const faturamentoMes = Number(salesMonth._sum.totalAmount ?? 0);
-  const totalGastoMes = Number(expensesMonth._sum.amount ?? 0);
+  // Um pedido da Shopee pode ter vários produtos (uma venda por produto); venda manual conta como um pedido
+  const shopeeOrders = new Set(ordersToday.filter((s) => s.shopeeOrderSn).map((s) => s.shopeeOrderSn));
+  const manualOrders = ordersToday.filter((s) => !s.shopeeOrderSn).length;
 
   return {
     faturamentoDia: Number(salesToday._sum.totalAmount ?? 0),
-    faturamentoMes,
+    faturamentoMes: Number(salesMonth._sum.totalAmount ?? 0),
     lucroDia: Number(salesToday._sum.profit ?? 0),
     lucroMes: Number(salesMonth._sum.profit ?? 0),
-    totalGastoMes,
-    saldo: faturamentoMes - totalGastoMes,
-    quantidadeProdutos: productCount,
-    estoqueBaixo: lowStockCount,
-    produtosMaisVendidos: topProducts,
+    pedidosDia: shopeeOrders.size + manualOrders,
   };
 }
 

@@ -8,6 +8,7 @@ interface StatCardProps {
   icon?: ReactNode;
   tone?: "default" | "success" | "destructive" | "warning";
   hint?: string;
+  className?: string;
 }
 
 const toneClasses: Record<NonNullable<StatCardProps["tone"]>, string> = {
@@ -17,9 +18,9 @@ const toneClasses: Record<NonNullable<StatCardProps["tone"]>, string> = {
   warning: "text-amber-500",
 };
 
-export function StatCard({ label, value, icon, tone = "default", hint }: StatCardProps) {
+export function StatCard({ label, value, icon, tone = "default", hint, className }: StatCardProps) {
   return (
-    <Card>
+    <Card className={className}>
       <CardContent className="flex items-start justify-between gap-2 p-3 sm:gap-3 sm:p-5">
         <div className="flex flex-col gap-1">
           <span className="text-[11px] font-medium uppercase tracking-wide text-muted-foreground sm:text-xs">{label}</span>

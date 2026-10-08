@@ -148,15 +148,7 @@ export interface DashboardSummary {
   faturamentoMes: number;
   lucroDia: number;
   lucroMes: number;
-  totalGastoMes: number;
-  saldo: number;
-  quantidadeProdutos: number;
-  estoqueBaixo: number;
-  produtosMaisVendidos: Array<{
-    product?: Product;
-    quantitySold: number;
-    totalAmount: number;
-  }>;
+  pedidosDia: number;
 }
 
 export interface SalesSummaryReport {
