@@ -105,10 +105,13 @@ async function findShopProduct(shopId: string, shopeeItemId: string, sku: string
   );
 }
 
-// O SKU é único no sistema todo; se outra loja já usa o mesmo SKU, diferencia pelo id da loja
-async function availableSku(sku: string, shopId: string) {
-  const taken = await prisma.product.findUnique({ where: { sku } });
-  return taken ? `${sku}-${shopId}` : sku;
+// O SKU é único no sistema todo; se outra loja já usa o mesmo SKU, diferencia pelo id da loja,
+// e se a própria loja tem vários anúncios com esse SKU, pelo id do anúncio (único na Shopee)
+async function availableSku(sku: string, shopId: string, shopeeItemId: string) {
+  for (const candidate of [sku, `${sku}-${shopId}`]) {
+    if (!(await prisma.product.findUnique({ where: { sku: candidate } }))) return candidate;
+  }
+  return `${sku}-${shopeeItemId}`;
 }
 
 interface ShopeeItemBaseInfo {
@@ -166,7 +169,7 @@ async function syncProducts(shop: ShopeeShop) {
         await prisma.product.create({
           data: {
             name: item.item_name,
-            sku: await availableSku(sku, shop.shopId),
+            sku: await availableSku(sku, shop.shopId, shopeeItemId),
             salePrice: price,
             shopeeItemId,
             shopeeShopId: shop.shopId,
@@ -247,7 +250,7 @@ async function findOrCreateProductFromOrder(shopId: string, itemId: number, line
     return existing;
   }
   return prisma.product.create({
-    data: { name: line.name, sku: await availableSku(sku, shopId), salePrice: line.unitPrice, shopeeItemId, shopeeShopId: shopId },
+    data: { name: line.name, sku: await availableSku(sku, shopId, shopeeItemId), salePrice: line.unitPrice, shopeeItemId, shopeeShopId: shopId },
   });
 }
 
