@@ -108,11 +108,18 @@ async function findShopeeProduct(shopeeItemId: string) {
   );
 }
 
+// Foto principal do anúncio; nunca substitui uma imagem que o usuário enviou (R2)
+function shopeeImageUpdate(currentImageUrl: string | null, shopeeImageUrl?: string) {
+  if (!shopeeImageUrl || currentImageUrl?.startsWith(env.r2PublicUrl)) return undefined;
+  return shopeeImageUrl;
+}
+
 interface ShopeeItemBaseInfo {
   item_id: number;
   item_name: string;
   item_sku?: string;
   price_info?: { current_price?: number; original_price?: number }[];
+  image?: { image_url_list?: string[] };
 }
 
 async function syncProducts(shop: ShopeeShop) {
@@ -150,13 +157,21 @@ async function syncProducts(shop: ShopeeShop) {
       const shopeeItemId = String(item.item_id);
       const price = item.price_info?.[0]?.current_price ?? item.price_info?.[0]?.original_price ?? 0;
       const shopeeSku = item.item_sku?.trim() || null;
+      const imageUrl = item.image?.image_url_list?.[0];
 
       const existing = await findShopeeProduct(shopeeItemId);
 
       if (existing) {
         await prisma.product.update({
           where: { id: existing.id },
-          data: { name: item.item_name, salePrice: price, shopeeItemId, shopeeShopId: shop.shopId, shopeeSku },
+          data: {
+            name: item.item_name,
+            salePrice: price,
+            shopeeItemId,
+            shopeeShopId: shop.shopId,
+            shopeeSku,
+            imageUrl: shopeeImageUpdate(existing.imageUrl, imageUrl),
+          },
         });
         updated++;
       } else {
@@ -168,6 +183,7 @@ async function syncProducts(shop: ShopeeShop) {
             shopeeItemId,
             shopeeShopId: shop.shopId,
             shopeeSku,
+            imageUrl,
           },
         });
         created++;
@@ -186,6 +202,7 @@ interface ShopeeOrderLineItem {
   item_sku?: string;
   model_quantity_purchased: number;
   model_discounted_price: number;
+  image_info?: { image_url?: string };
 }
 
 interface ShopeeOrderDetail {
@@ -234,18 +251,33 @@ async function fetchOrderNetAmount(accessToken: string, shopId: string, orderSn:
   }
 }
 
-async function findOrCreateProductFromOrder(shopId: string, itemId: number, line: { name: string; sku?: string; unitPrice: number }) {
+async function findOrCreateProductFromOrder(
+  shopId: string,
+  itemId: number,
+  line: { name: string; sku?: string; unitPrice: number; imageUrl?: string }
+) {
   const shopeeItemId = String(itemId);
   const shopeeSku = line.sku?.trim() || null;
   const existing = await findShopeeProduct(shopeeItemId);
   if (existing) {
-    if (!existing.shopeeItemId || !existing.shopeeShopId) {
-      return prisma.product.update({ where: { id: existing.id }, data: { shopeeItemId, shopeeShopId: shopId, shopeeSku } });
+    if (!existing.shopeeItemId || !existing.shopeeShopId || !existing.imageUrl) {
+      return prisma.product.update({
+        where: { id: existing.id },
+        data: { shopeeItemId, shopeeShopId: shopId, shopeeSku, imageUrl: shopeeImageUpdate(existing.imageUrl, line.imageUrl) },
+      });
     }
     return existing;
   }
   return prisma.product.create({
-    data: { name: line.name, sku: systemSku(shopeeItemId), salePrice: line.unitPrice, shopeeItemId, shopeeShopId: shopId, shopeeSku },
+    data: {
+      name: line.name,
+      sku: systemSku(shopeeItemId),
+      salePrice: line.unitPrice,
+      shopeeItemId,
+      shopeeShopId: shopId,
+      shopeeSku,
+      imageUrl: line.imageUrl,
+    },
   });
 }
 
@@ -303,7 +335,10 @@ async function syncOrders(shop: ShopeeShop) {
       const grossTotal = itemList.reduce((sum, it) => sum + it.model_discounted_price * it.model_quantity_purchased, 0) || order.total_amount;
 
       // Variações do mesmo anúncio viram uma única venda por produto (unique em shopeeOrderSn + productId)
-      const linesByItem = new Map<number, { quantity: number; gross: number; name: string; sku?: string; unitPrice: number }>();
+      const linesByItem = new Map<
+        number,
+        { quantity: number; gross: number; name: string; sku?: string; unitPrice: number; imageUrl?: string }
+      >();
       for (const line of itemList) {
         const acc = linesByItem.get(line.item_id) ?? {
           quantity: 0,
@@ -311,6 +346,7 @@ async function syncOrders(shop: ShopeeShop) {
           name: line.item_name,
           sku: line.item_sku,
           unitPrice: line.model_discounted_price,
+          imageUrl: line.image_info?.image_url,
         };
         acc.quantity += line.model_quantity_purchased;
         acc.gross += line.model_discounted_price * line.model_quantity_purchased;
