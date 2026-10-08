@@ -277,3 +277,19 @@ model ProductVariation {
   @@index([costGroupId])
   @@map("product_variations")
 }
+
+// Fechamento do dia (sync automático da 00:00): valor fixo para conferência no dia seguinte
+model DailyClose {
+  id        String   @id @default(cuid())
+  // "YYYY-MM-DD" no horário de Brasília
+  date      String
+  // loja Shopee do fechamento; "" = todas as lojas somadas
+  shopId    String   @default("")
+  revenue   Decimal  @db.Decimal(12, 2)
+  profit    Decimal  @db.Decimal(12, 2)
+  orders    Int
+  createdAt DateTime @default(now())
+
+  @@unique([date, shopId])
+  @@map("daily_closes")
+}

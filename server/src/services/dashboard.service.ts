@@ -1,41 +1,80 @@
 import { prisma } from "../config/prisma";
 import { startOfDay, endOfDay, startOfMonth, endOfMonth, toDateKey } from "../utils/dateRange";
 
+// Filtro por loja Shopee: só vendas de produtos daquela loja
+function shopFilter(shopId?: string) {
+  return shopId ? { product: { shopeeShopId: shopId } } : {};
+}
+
+// Faturamento, lucro e pedidos de um dia (horário de Brasília)
+async function summarizeDay(day: Date, shopId?: string) {
+  const where = { saleDate: { gte: startOfDay(day), lte: endOfDay(day) }, ...shopFilter(shopId) };
+  const [totals, sales] = await Promise.all([
+    prisma.sale.aggregate({ where, _sum: { totalAmount: true, profit: true } }),
+    prisma.sale.findMany({ where, select: { shopeeOrderSn: true } }),
+  ]);
+
+  // Um pedido da Shopee pode ter várias vendas (uma por variação); venda manual conta como um pedido
+  const shopeeOrders = new Set(sales.filter((s) => s.shopeeOrderSn).map((s) => s.shopeeOrderSn));
+  const manualOrders = sales.filter((s) => !s.shopeeOrderSn).length;
+
+  return {
+    revenue: Number(totals._sum.totalAmount ?? 0),
+    profit: Number(totals._sum.profit ?? 0),
+    orders: shopeeOrders.size + manualOrders,
+  };
+}
+
+function previousDay(date: Date) {
+  const d = new Date(date);
+  d.setDate(d.getDate() - 1);
+  return d;
+}
+
+// Guarda o resultado do dia (todas as lojas e cada loja) para não mudar depois do fechamento
+export async function closeDay(day: Date) {
+  const date = toDateKey(day);
+  const shops = await prisma.shopeeShop.findMany({ select: { shopId: true } });
+  for (const shopId of ["", ...shops.map((s) => s.shopId)]) {
+    const summary = await summarizeDay(day, shopId || undefined);
+    await prisma.dailyClose.upsert({
+      where: { date_shopId: { date, shopId } },
+      create: { date, shopId, ...summary },
+      update: summary,
+    });
+  }
+}
+
+export async function hasClosedDay(day: Date) {
+  return !!(await prisma.dailyClose.findUnique({ where: { date_shopId: { date: toDateKey(day), shopId: "" } } }));
+}
+
 export async function getDashboardSummary(shopId?: string) {
   const now = new Date();
-  const dayStart = startOfDay(now);
-  const dayEnd = endOfDay(now);
+  const yesterday = previousDay(now);
   const monthStart = startOfMonth(now);
   const monthEnd = endOfMonth(now);
 
-  // Filtro por loja Shopee: só vendas de produtos daquela loja
-  const shopFilter = shopId ? { product: { shopeeShopId: shopId } } : {};
-
-  const [salesToday, salesMonth, ordersToday] = await Promise.all([
+  const [today, salesMonth, yesterdayClose] = await Promise.all([
+    summarizeDay(now, shopId),
     prisma.sale.aggregate({
-      where: { saleDate: { gte: dayStart, lte: dayEnd }, ...shopFilter },
+      where: { saleDate: { gte: monthStart, lte: monthEnd }, ...shopFilter(shopId) },
       _sum: { totalAmount: true, profit: true },
     }),
-    prisma.sale.aggregate({
-      where: { saleDate: { gte: monthStart, lte: monthEnd }, ...shopFilter },
-      _sum: { totalAmount: true, profit: true },
-    }),
-    prisma.sale.findMany({
-      where: { saleDate: { gte: dayStart, lte: dayEnd }, ...shopFilter },
-      select: { shopeeOrderSn: true },
-    }),
+    prisma.dailyClose.findUnique({ where: { date_shopId: { date: toDateKey(yesterday), shopId: shopId ?? "" } } }),
   ]);
 
-  // Um pedido da Shopee pode ter vários produtos (uma venda por produto); venda manual conta como um pedido
-  const shopeeOrders = new Set(ordersToday.filter((s) => s.shopeeOrderSn).map((s) => s.shopeeOrderSn));
-  const manualOrders = ordersToday.filter((s) => !s.shopeeOrderSn).length;
+  // Antes do fechamento da 00:00 (ou se ele falhou) mostra o valor atual de ontem
+  const lucroOntem = yesterdayClose ? Number(yesterdayClose.profit) : (await summarizeDay(yesterday, shopId)).profit;
 
   return {
-    faturamentoDia: Number(salesToday._sum.totalAmount ?? 0),
+    faturamentoDia: today.revenue,
     faturamentoMes: Number(salesMonth._sum.totalAmount ?? 0),
-    lucroDia: Number(salesToday._sum.profit ?? 0),
+    lucroDia: today.profit,
     lucroMes: Number(salesMonth._sum.profit ?? 0),
-    pedidosDia: shopeeOrders.size + manualOrders,
+    pedidosDia: today.orders,
+    lucroOntem,
+    lucroOntemFechado: !!yesterdayClose,
   };
 }
 

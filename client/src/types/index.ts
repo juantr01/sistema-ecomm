@@ -151,6 +151,9 @@ export interface DashboardSummary {
   lucroDia: number;
   lucroMes: number;
   pedidosDia: number;
+  lucroOntem: number;
+  // false = ainda não houve o fechamento da 00:00; o valor é o atual de ontem
+  lucroOntemFechado: boolean;
 }
 
 export interface SalesSummaryReport {

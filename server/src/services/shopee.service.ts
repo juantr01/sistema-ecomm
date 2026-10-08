@@ -488,8 +488,28 @@ async function syncOrders(shop: ShopeeShop) {
   return { found: uniqueOrderSns.length, created, updated, removed, skipped };
 }
 
-// Sincroniza todas as lojas; se uma falhar (ex.: autorização expirada), as outras continuam
+// Um sync por vez: clique repetido, ou o sync automático da 00:00 junto com um manual,
+// duplicaria o trabalho e poderia criar registros em dobro
+let syncRunning = false;
+
+export function isSyncRunning() {
+  return syncRunning;
+}
+
 export async function syncAllShops() {
+  if (syncRunning) {
+    throw new AppError("Já existe uma sincronização em andamento. Aguarde alguns minutos e tente de novo.", 409);
+  }
+  syncRunning = true;
+  try {
+    return await runSyncAllShops();
+  } finally {
+    syncRunning = false;
+  }
+}
+
+// Sincroniza todas as lojas; se uma falhar (ex.: autorização expirada), as outras continuam
+async function runSyncAllShops() {
   const shops = await listShops();
   if (!shops.length) {
     throw new AppError("Nenhuma loja Shopee conectada", 400);
