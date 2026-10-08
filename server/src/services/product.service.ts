@@ -19,6 +19,7 @@ export async function listProducts(query: ListProductsQuery) {
     where.OR = [
       { name: { contains: query.search, mode: "insensitive" } },
       { sku: { contains: query.search, mode: "insensitive" } },
+      { shopeeSku: { contains: query.search, mode: "insensitive" } },
     ];
   }
 

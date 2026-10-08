@@ -142,7 +142,7 @@ export default function ProdutosLista() {
                       {product.size && <span className="text-muted-foreground"> · {product.size}</span>}
                       {product.pattern && <span className="text-muted-foreground"> · {product.pattern}</span>}
                     </TableCell>
-                    <TableCell className="text-muted-foreground">{product.sku}</TableCell>
+                    <TableCell className="text-muted-foreground">{product.shopeeSku ?? product.sku}</TableCell>
                     <TableCell className="text-muted-foreground">{product.category?.name ?? "—"}</TableCell>
                     <TableCell>
                       {product.sourceType === "DROPSHIPPING" ? (

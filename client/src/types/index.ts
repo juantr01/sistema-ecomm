@@ -52,6 +52,7 @@ export interface Product {
   imageUrl: string | null;
   active: boolean;
   shopeeShopId: string | null;
+  shopeeSku: string | null;
   createdAt: string;
   updatedAt: string;
   salesCount?: number;

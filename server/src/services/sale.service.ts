@@ -21,6 +21,7 @@ export async function listSales(query: ListSalesQuery) {
     productWhere.OR = [
       { name: { contains: query.search, mode: "insensitive" } },
       { sku: { contains: query.search, mode: "insensitive" } },
+      { shopeeSku: { contains: query.search, mode: "insensitive" } },
     ];
   }
   if (query.shopId || query.search) where.product = productWhere;

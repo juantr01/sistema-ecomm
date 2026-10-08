@@ -71,6 +71,8 @@ model Product {
   shopeeModelId    String?
   // shopId da loja Shopee de origem; nulo em produtos cadastrados manualmente
   shopeeShopId     String?
+  // SKU do anúncio na Shopee (pode repetir entre anúncios); o sku do produto é único no sistema
+  shopeeSku        String?
   createdAt        DateTime          @default(now())
   updatedAt        DateTime          @updatedAt
 

@@ -94,24 +94,18 @@ async function getValidAccessToken(shop: { shopId: string; accessToken: string; 
   return data.access_token;
 }
 
-// O item_id é único em toda a Shopee; o SKU só identifica o produto dentro da mesma loja
-// (ou um produto cadastrado à mão que ainda não foi vinculado a nenhuma loja)
-async function findShopProduct(shopId: string, shopeeItemId: string, sku: string) {
-  return (
-    (await prisma.product.findUnique({ where: { shopeeItemId } })) ??
-    (await prisma.product.findFirst({
-      where: { sku, OR: [{ shopeeShopId: shopId }, { shopeeShopId: null, shopeeItemId: null }] },
-    }))
-  );
+// Um produto por anúncio: o item_id é único em toda a Shopee. O SKU da Shopee pode se repetir entre
+// anúncios (ex.: o tipo do produto), então fica em shopeeSku e o sku do sistema é gerado do item_id.
+function systemSku(shopeeItemId: string) {
+  return `shopee-${shopeeItemId}`;
 }
 
-// O SKU é único no sistema todo; se outra loja já usa o mesmo SKU, diferencia pelo id da loja,
-// e se a própria loja tem vários anúncios com esse SKU, pelo id do anúncio (único na Shopee)
-async function availableSku(sku: string, shopId: string, shopeeItemId: string) {
-  for (const candidate of [sku, `${sku}-${shopId}`]) {
-    if (!(await prisma.product.findUnique({ where: { sku: candidate } }))) return candidate;
-  }
-  return `${sku}-${shopeeItemId}`;
+async function findShopeeProduct(shopeeItemId: string) {
+  return (
+    (await prisma.product.findUnique({ where: { shopeeItemId } })) ??
+    // produto que já foi deste anúncio e ficou desvinculado (ex.: reconstrução dos dados)
+    (await prisma.product.findUnique({ where: { sku: systemSku(shopeeItemId) } }))
+  );
 }
 
 interface ShopeeItemBaseInfo {
@@ -155,24 +149,25 @@ async function syncProducts(shop: ShopeeShop) {
     for (const item of data.response?.item_list ?? []) {
       const shopeeItemId = String(item.item_id);
       const price = item.price_info?.[0]?.current_price ?? item.price_info?.[0]?.original_price ?? 0;
-      const sku = item.item_sku?.trim() || `shopee-${shopeeItemId}`;
+      const shopeeSku = item.item_sku?.trim() || null;
 
-      const existing = await findShopProduct(shop.shopId, shopeeItemId, sku);
+      const existing = await findShopeeProduct(shopeeItemId);
 
       if (existing) {
         await prisma.product.update({
           where: { id: existing.id },
-          data: { name: item.item_name, salePrice: price, shopeeItemId, shopeeShopId: shop.shopId },
+          data: { name: item.item_name, salePrice: price, shopeeItemId, shopeeShopId: shop.shopId, shopeeSku },
         });
         updated++;
       } else {
         await prisma.product.create({
           data: {
             name: item.item_name,
-            sku: await availableSku(sku, shop.shopId, shopeeItemId),
+            sku: systemSku(shopeeItemId),
             salePrice: price,
             shopeeItemId,
             shopeeShopId: shop.shopId,
+            shopeeSku,
           },
         });
         created++;
@@ -241,16 +236,16 @@ async function fetchOrderNetAmount(accessToken: string, shopId: string, orderSn:
 
 async function findOrCreateProductFromOrder(shopId: string, itemId: number, line: { name: string; sku?: string; unitPrice: number }) {
   const shopeeItemId = String(itemId);
-  const sku = line.sku?.trim() || `shopee-${shopeeItemId}`;
-  const existing = await findShopProduct(shopId, shopeeItemId, sku);
+  const shopeeSku = line.sku?.trim() || null;
+  const existing = await findShopeeProduct(shopeeItemId);
   if (existing) {
     if (!existing.shopeeItemId || !existing.shopeeShopId) {
-      return prisma.product.update({ where: { id: existing.id }, data: { shopeeItemId, shopeeShopId: shopId } });
+      return prisma.product.update({ where: { id: existing.id }, data: { shopeeItemId, shopeeShopId: shopId, shopeeSku } });
     }
     return existing;
   }
   return prisma.product.create({
-    data: { name: line.name, sku: await availableSku(sku, shopId, shopeeItemId), salePrice: line.unitPrice, shopeeItemId, shopeeShopId: shopId },
+    data: { name: line.name, sku: systemSku(shopeeItemId), salePrice: line.unitPrice, shopeeItemId, shopeeShopId: shopId, shopeeSku },
   });
 }
 
