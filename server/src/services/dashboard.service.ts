@@ -1,5 +1,5 @@
 import { prisma } from "../config/prisma";
-import { startOfDay, endOfDay, startOfMonth, endOfMonth, toDateKey } from "../utils/dateRange";
+import { startOfDay, endOfDay, startOfMonth, endOfMonth, toDateKey, parseLocalDate } from "../utils/dateRange";
 
 // Filtro por loja Shopee: só vendas de produtos daquela loja
 function shopFilter(shopId?: string) {
@@ -47,6 +47,84 @@ export async function closeDay(day: Date) {
 
 export async function hasClosedDay(day: Date) {
   return !!(await prisma.dailyClose.findUnique({ where: { date_shopId: { date: toDateKey(day), shopId: "" } } }));
+}
+
+// Pedidos de um dia com o lucro de cada um, para conferir o card "Lucro do dia"
+export async function getDayOrders(date: string, shopId?: string) {
+  const day = parseLocalDate(date);
+  const sales = await prisma.sale.findMany({
+    where: { saleDate: { gte: startOfDay(day), lte: endOfDay(day) }, ...shopFilter(shopId) },
+    include: {
+      product: { select: { name: true, imageUrl: true, shopeeShopId: true } },
+      variation: { select: { name: true } },
+    },
+    orderBy: { saleDate: "desc" },
+  });
+
+  // Pedido da Shopee junta as vendas (uma por variação); venda manual é um pedido sozinha
+  const orders = new Map<
+    string,
+    {
+      orderSn: string | null;
+      shopeeShopId: string | null;
+      saleDate: Date;
+      totalAmount: number;
+      cost: number;
+      profit: number;
+      items: {
+        saleId: string;
+        productName: string;
+        imageUrl: string | null;
+        variationName: string | null;
+        quantity: number;
+        totalAmount: number;
+        unitCost: number;
+        profit: number;
+      }[];
+    }
+  >();
+
+  for (const sale of sales) {
+    const key = sale.shopeeOrderSn ?? `manual:${sale.id}`;
+    const order = orders.get(key) ?? {
+      orderSn: sale.shopeeOrderSn,
+      shopeeShopId: sale.product.shopeeShopId,
+      saleDate: sale.saleDate,
+      totalAmount: 0,
+      cost: 0,
+      profit: 0,
+      items: [],
+    };
+    const totalAmount = Number(sale.totalAmount);
+    const unitCost = Number(sale.unitCostAtSale);
+    const profit = Number(sale.profit);
+    order.totalAmount += totalAmount;
+    order.cost += unitCost * sale.quantity;
+    order.profit += profit;
+    order.items.push({
+      saleId: sale.id,
+      productName: sale.product.name,
+      imageUrl: sale.product.imageUrl,
+      variationName: sale.variation?.name || null,
+      quantity: sale.quantity,
+      totalAmount,
+      unitCost,
+      profit,
+    });
+    orders.set(key, order);
+  }
+
+  const list = [...orders.values()];
+  return {
+    date: toDateKey(day),
+    orders: list,
+    totals: {
+      orders: list.length,
+      totalAmount: list.reduce((sum, o) => sum + o.totalAmount, 0),
+      cost: list.reduce((sum, o) => sum + o.cost, 0),
+      profit: list.reduce((sum, o) => sum + o.profit, 0),
+    },
+  };
 }
 
 export async function getDashboardSummary(shopId?: string) {

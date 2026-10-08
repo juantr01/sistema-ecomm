@@ -1,7 +1,7 @@
 import { useQuery } from "@tanstack/react-query";
 import { api, buildQuery } from "@/lib/api";
 import { useShopFilter } from "@/stores/shopFilterStore";
-import { DashboardSummary } from "@/types";
+import { DashboardSummary, DayOrders } from "@/types";
 
 export function useDashboardSummary() {
   const shopId = useShopFilter();
@@ -22,5 +22,13 @@ export function useRevenueTrend(days = 30) {
   return useQuery({
     queryKey: ["dashboard", "revenue-trend", days, shopId],
     queryFn: () => api.get<RevenueTrendPoint[]>(`/dashboard/revenue-trend${buildQuery({ days, shopId })}`),
+  });
+}
+
+export function useDayOrders(date: string) {
+  const shopId = useShopFilter();
+  return useQuery({
+    queryKey: ["dashboard", "day-orders", date, shopId],
+    queryFn: () => api.get<DayOrders>(`/dashboard/day-orders${buildQuery({ date, shopId })}`),
   });
 }

@@ -2,11 +2,14 @@ import { Banknote, CalendarCheck, ShoppingBag, TrendingUp } from "lucide-react";
 import { StatCard } from "@/components/dashboard/StatCard";
 import { RevenueChart } from "@/components/dashboard/RevenueChart";
 import { useDashboardSummary, useRevenueTrend } from "@/hooks/useDashboard";
-import { formatCurrency } from "@/lib/format";
+import { formatCurrency, toInputDate } from "@/lib/format";
 
 export default function Dashboard() {
   const { data: summary, isLoading } = useDashboardSummary();
   const { data: trend, isLoading: loadingTrend } = useRevenueTrend(30);
+  const yesterday = new Date();
+  yesterday.setDate(yesterday.getDate() - 1);
+  const yesterdayKey = toInputDate(yesterday);
 
   return (
     <div className="space-y-4 md:space-y-6">
@@ -24,6 +27,7 @@ export default function Dashboard() {
           value={isLoading ? "—" : formatCurrency(summary!.lucroDia)}
           tone={!isLoading && summary!.lucroDia < 0 ? "destructive" : "success"}
           icon={<TrendingUp className="h-4 w-4" />}
+          to="/lucro-do-dia"
         />
         <StatCard
           label="Faturamento do mês"
@@ -49,6 +53,7 @@ export default function Dashboard() {
           icon={<CalendarCheck className="h-4 w-4" />}
           hint={isLoading ? undefined : summary!.lucroOntemFechado ? "Fechado à 00:00" : "Parcial — fecha à 00:00"}
           className="lg:col-start-3 lg:row-start-2"
+          to={`/lucro-do-dia?data=${yesterdayKey}`}
         />
       </div>
 

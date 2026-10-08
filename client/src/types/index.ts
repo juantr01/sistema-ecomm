@@ -195,3 +195,31 @@ export interface CostVariation {
   product: { id: string; name: string; imageUrl: string | null; shopeeShopId: string | null };
   costGroup: { id: string; name: string } | null;
 }
+
+export interface DayOrderItem {
+  saleId: string;
+  productName: string;
+  imageUrl: string | null;
+  variationName: string | null;
+  quantity: number;
+  totalAmount: number;
+  unitCost: number;
+  profit: number;
+}
+
+export interface DayOrder {
+  // nulo em venda manual
+  orderSn: string | null;
+  shopeeShopId: string | null;
+  saleDate: string;
+  totalAmount: number;
+  cost: number;
+  profit: number;
+  items: DayOrderItem[];
+}
+
+export interface DayOrders {
+  date: string;
+  orders: DayOrder[];
+  totals: { orders: number; totalAmount: number; cost: number; profit: number };
+}

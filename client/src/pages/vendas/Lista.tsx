@@ -7,6 +7,7 @@ import { Input } from "@/components/ui/input";
 import { SearchInput } from "@/components/shared/SearchInput";
 import { DateRange } from "@/components/shared/DateRangeFilter";
 import { EmptyState } from "@/components/shared/EmptyState";
+import { ProductThumb } from "@/components/shared/ProductThumb";
 import { ConfirmDialog } from "@/components/shared/ConfirmDialog";
 import { Badge } from "@/components/ui/badge";
 import { useSales, useDeleteSale } from "@/hooks/useSales";
@@ -127,6 +128,7 @@ export default function VendasLista() {
             <TableHeader>
               <TableRow>
                 <TableHead>Data</TableHead>
+                <TableHead></TableHead>
                 <TableHead>Produto</TableHead>
                 <TableHead>Quantidade</TableHead>
                 <TableHead>Valor vendido</TableHead>
@@ -138,6 +140,9 @@ export default function VendasLista() {
               {sales.map((sale) => (
                 <TableRow key={sale.id}>
                   <TableCell className="text-muted-foreground">{formatDate(sale.saleDate)}</TableCell>
+                  <TableCell className="w-12 pr-0">
+                    <ProductThumb src={sale.product?.imageUrl} />
+                  </TableCell>
                   <TableCell className="font-medium">
                     {sale.product?.shopeeShopId && shopNames.has(sale.product.shopeeShopId) && (
                       <Badge variant="secondary" className="mr-2 whitespace-nowrap align-middle">
