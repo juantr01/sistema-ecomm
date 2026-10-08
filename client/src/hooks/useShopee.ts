@@ -7,6 +7,7 @@ interface ShopeeStatus {
   shopName?: string;
   lastProductSyncAt?: string | null;
   lastOrderSyncAt?: string | null;
+  otherShops?: { shopId: string; shopName: string | null }[];
 }
 
 interface ShopeeSyncResult {

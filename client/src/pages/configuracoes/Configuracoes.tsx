@@ -137,9 +137,20 @@ export default function Configuracoes() {
                   Última sincronização de vendas:{" "}
                   {shopeeStatus.lastOrderSyncAt ? formatDateTime(shopeeStatus.lastOrderSyncAt) : "nunca"}
                 </p>
+                {!!shopeeStatus.otherShops?.length && (
+                  <p>
+                    Outras lojas conectadas (ainda não sincronizadas):{" "}
+                    <span className="text-foreground">
+                      {shopeeStatus.otherShops.map((s) => s.shopName ?? s.shopId).join(", ")}
+                    </span>
+                  </p>
+                )}
               </div>
               <div className="flex flex-wrap gap-2">
                 <ShopeeSyncButton />
+                <Button type="button" variant="outline" onClick={() => connectShopee.mutate()} disabled={connectShopee.isPending}>
+                  {connectShopee.isPending ? "Conectando..." : "Conectar outra loja"}
+                </Button>
                 <Button type="button" variant="outline" onClick={() => setConfirmDisconnect(true)}>
                   Desconectar
                 </Button>

@@ -68,8 +68,10 @@ export async function handleOAuthCallback(code: string, shopId: string) {
   });
 }
 
+// Enquanto o sync não suporta várias lojas, só a primeira conectada é sincronizada;
+// as demais ficam apenas autorizadas
 export async function getConnectedShop() {
-  return prisma.shopeeShop.findFirst({ orderBy: { createdAt: "desc" } });
+  return prisma.shopeeShop.findFirst({ orderBy: { createdAt: "asc" } });
 }
 
 async function getValidAccessToken(shop: { shopId: string; accessToken: string; refreshToken: string; accessTokenExpiresAt: Date }): Promise<string> {
@@ -358,11 +360,17 @@ export async function getStatus() {
   if (!shop) {
     return { connected: false as const };
   }
+  const otherShops = await prisma.shopeeShop.findMany({
+    where: { shopId: { not: shop.shopId } },
+    select: { shopId: true, shopName: true },
+    orderBy: { createdAt: "asc" },
+  });
   return {
     connected: true as const,
     shopId: shop.shopId,
     shopName: shop.shopName,
     lastProductSyncAt: shop.lastProductSyncAt,
     lastOrderSyncAt: shop.lastOrderSyncAt,
+    otherShops,
   };
 }
