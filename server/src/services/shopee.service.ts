@@ -5,6 +5,9 @@ import { AppError } from "../utils/AppError";
 import { buildShopeeUrl } from "../utils/shopeeSign";
 
 const ORDER_LIST_WINDOW_DAYS = 15;
+const ORDER_SYNC_OVERLAP_SECONDS = 60 * 60;
+// Chamadas de escrow em paralelo por lote de pedidos (uma a uma deixava o sync lento)
+const ESCROW_CONCURRENCY = 10;
 // Vendas da Shopee só contam a partir do início do uso do sistema (01/10/2026, horário de Brasília)
 const ORDERS_START = Math.floor(new Date("2026-10-01T00:00:00-03:00").getTime() / 1000);
 
@@ -371,9 +374,10 @@ async function syncOrders(shop: ShopeeShop) {
 
   const now = Math.floor(Date.now() / 1000);
   const windowSeconds = ORDER_LIST_WINDOW_DAYS * 24 * 60 * 60;
-  // Sempre revisa ao menos a última janela, para pegar pedidos em andamento que mudaram de valor/status
+  // A lista é por data de atualização: pedido que mudou de status/valor volta a aparecer sozinho,
+  // então basta buscar desde o último sync (com folga para relógios/pedidos no limite)
   const overallFrom = shop.lastOrderSyncAt
-    ? Math.min(Math.floor(shop.lastOrderSyncAt.getTime() / 1000), now - windowSeconds)
+    ? Math.max(Math.floor(shop.lastOrderSyncAt.getTime() / 1000) - ORDER_SYNC_OVERLAP_SECONDS, ORDERS_START)
     : ORDERS_START;
 
   const orderSns: string[] = [];
@@ -399,8 +403,24 @@ async function syncOrders(shop: ShopeeShop) {
       { accessToken, shopId: shop.shopId }
     );
     const data = await shopeeFetch<{ response?: { order_list?: ShopeeOrderDetail[] } }>(url);
+    const orderList = data.response?.order_list ?? [];
 
-    for (const order of data.response?.order_list ?? []) {
+    // O valor bruto do pedido inclui taxas da plataforma; usamos o repasse líquido (escrow)
+    // para refletir o que realmente cai na conta, mesma regra das vendas manuais.
+    // Antes de o pedido ser concluído o escrow é uma estimativa; os próximos syncs atualizam o valor.
+    const netAmounts = new Map<string, number>();
+    const needsEscrow = orderList.filter(
+      (o) => o.create_time >= ORDERS_START && !IGNORED_ORDER_STATUSES.has(o.order_status) && !VOIDED_ORDER_STATUSES.has(o.order_status)
+    );
+    for (let j = 0; j < needsEscrow.length; j += ESCROW_CONCURRENCY) {
+      await Promise.all(
+        needsEscrow.slice(j, j + ESCROW_CONCURRENCY).map(async (o) => {
+          netAmounts.set(o.order_sn, await fetchOrderNetAmount(accessToken, shop.shopId, o.order_sn, o.total_amount));
+        })
+      );
+    }
+
+    for (const order of orderList) {
       // A lista é por data de atualização; pedido feito antes do início não entra
       if (order.create_time < ORDERS_START) continue;
 
@@ -415,10 +435,7 @@ async function syncOrders(shop: ShopeeShop) {
         continue;
       }
 
-      // O valor bruto do pedido inclui taxas da plataforma; usamos o repasse líquido (escrow)
-      // para refletir o que realmente cai na conta, mesma regra das vendas manuais.
-      // Antes de o pedido ser concluído o escrow é uma estimativa; os próximos syncs atualizam o valor.
-      const netAmount = await fetchOrderNetAmount(accessToken, shop.shopId, order.order_sn, order.total_amount);
+      const netAmount = netAmounts.get(order.order_sn) ?? order.total_amount;
       const itemList = order.item_list ?? [];
       const grossTotal = itemList.reduce((sum, it) => sum + it.model_discounted_price * it.model_quantity_purchased, 0) || order.total_amount;
 
