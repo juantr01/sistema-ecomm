@@ -13,7 +13,11 @@ interface ShopeeStatus {
   shops: ShopeeShopStatus[];
 }
 
+// "all" nas Configurações; no topo, só vendas (ou só produtos na página de produtos)
+export type ShopeeSyncScope = "all" | "orders" | "products";
+
 interface ShopeeSyncResult {
+  scope: ShopeeSyncScope;
   products: { created: number; updated: number };
   orders: {
     found: number;
@@ -61,7 +65,7 @@ export function useDisconnectShopee() {
 export function useShopeeSync() {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: () => api.post<ShopeeSyncResult>("/shopee/sync"),
+    mutationFn: (scope: ShopeeSyncScope) => api.post<ShopeeSyncResult>("/shopee/sync", { scope }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["shopee", "status"] });
       queryClient.invalidateQueries({ queryKey: ["products"] });

@@ -496,20 +496,23 @@ export function isSyncRunning() {
   return syncRunning;
 }
 
-export async function syncAllShops() {
+// Sync só de vendas (botão do topo) evita puxar todos os anúncios, que é a parte mais lenta
+export type SyncScope = "all" | "orders" | "products";
+
+export async function syncAllShops(scope: SyncScope = "all") {
   if (syncRunning) {
     throw new AppError("Já existe uma sincronização em andamento. Aguarde alguns minutos e tente de novo.", 409);
   }
   syncRunning = true;
   try {
-    return await runSyncAllShops();
+    return await runSyncAllShops(scope);
   } finally {
     syncRunning = false;
   }
 }
 
 // Sincroniza todas as lojas; se uma falhar (ex.: autorização expirada), as outras continuam
-async function runSyncAllShops() {
+async function runSyncAllShops(scope: SyncScope) {
   const shops = await listShops();
   if (!shops.length) {
     throw new AppError("Nenhuma loja Shopee conectada", 400);
@@ -521,15 +524,19 @@ async function runSyncAllShops() {
 
   for (const shop of shops) {
     try {
-      const p = await syncProducts(shop);
-      const o = await syncOrders(shop);
-      products.created += p.created;
-      products.updated += p.updated;
-      orders.found += o.found;
-      orders.created += o.created;
-      orders.updated += o.updated;
-      orders.removed += o.removed;
-      orders.skipped.push(...o.skipped);
+      if (scope !== "orders") {
+        const p = await syncProducts(shop);
+        products.created += p.created;
+        products.updated += p.updated;
+      }
+      if (scope !== "products") {
+        const o = await syncOrders(shop);
+        orders.found += o.found;
+        orders.created += o.created;
+        orders.updated += o.updated;
+        orders.removed += o.removed;
+        orders.skipped.push(...o.skipped);
+      }
     } catch (err) {
       console.error(`Falha ao sincronizar a loja Shopee ${shop.shopId}:`, err);
       failures.push({ shopName: shop.shopName ?? shop.shopId, message: err instanceof AppError ? err.message : "erro inesperado" });
@@ -540,7 +547,7 @@ async function runSyncAllShops() {
     throw new AppError(failures.map((f) => `${f.shopName}: ${f.message}`).join("; "), 502);
   }
 
-  return { products, orders, failures };
+  return { scope, products, orders, failures };
 }
 
 // Remove só a autorização da loja; produtos e vendas já sincronizados são mantidos

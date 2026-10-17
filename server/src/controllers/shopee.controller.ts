@@ -36,9 +36,9 @@ export async function disconnectHandler(req: Request, res: Response, next: NextF
   }
 }
 
-export async function syncHandler(_req: Request, res: Response, next: NextFunction) {
+export async function syncHandler(req: Request, res: Response, next: NextFunction) {
   try {
-    res.json(await shopeeService.syncAllShops());
+    res.json(await shopeeService.syncAllShops(req.body.scope));
   } catch (err) {
     next(err);
   }

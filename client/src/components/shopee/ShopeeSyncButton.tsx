@@ -1,4 +1,5 @@
 import { RefreshCw } from "lucide-react";
+import { useLocation } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { useShopeeStatus, useShopeeSync } from "@/hooks/useShopee";
 import { toast } from "@/stores/toastStore";
@@ -12,21 +13,27 @@ interface ShopeeSyncButtonProps {
 export function ShopeeSyncButton({ compact }: ShopeeSyncButtonProps) {
   const { data: status } = useShopeeStatus();
   const shopeeSync = useShopeeSync();
+  const { pathname } = useLocation();
+  // Topo: na página de produtos sincroniza só produtos, no resto só vendas (sync completo é lento)
+  const scope = !compact ? "all" : pathname.startsWith("/produtos") ? "products" : "orders";
 
   if (compact && !status?.connected) return null;
 
   async function handleSync() {
     try {
-      const { products, orders, failures } = await shopeeSync.mutateAsync();
+      const { products, orders, failures } = await shopeeSync.mutateAsync(scope);
       const skipped = orders.skipped.length
         ? ` Não importados: ${orders.skipped.map((s) => `${s.orderSn} (${s.reason})`).join(", ")}.`
         : "";
       const failed = failures.length
         ? ` Não foi possível sincronizar: ${failures.map((f) => `${f.shopName} (${f.message})`).join(", ")}.`
         : "";
+      const productsSummary = `Produtos: ${products.created} novos, ${products.updated} atualizados.`;
+      const ordersSummary = `Pedidos encontrados: ${orders.found}. Vendas: ${orders.created} importadas, ${orders.updated} atualizadas, ${orders.removed} removidas (canceladas).`;
+      const summary = scope === "products" ? productsSummary : scope === "orders" ? ordersSummary : `${productsSummary} ${ordersSummary}`;
       toast({
         title: failures.length ? "Sincronização concluída com falhas" : "Sincronização concluída",
-        description: `Produtos: ${products.created} novos, ${products.updated} atualizados. Pedidos encontrados: ${orders.found}. Vendas: ${orders.created} importadas, ${orders.updated} atualizadas, ${orders.removed} removidas (canceladas).${skipped}${failed}`,
+        description: `${summary}${skipped}${failed}`,
         variant: failures.length ? "destructive" : "success",
       });
     } catch (err) {
@@ -38,7 +45,13 @@ export function ShopeeSyncButton({ compact }: ShopeeSyncButtonProps) {
     }
   }
 
-  const label = shopeeSync.isPending ? "Sincronizando..." : compact ? "Sincronizar pedidos" : "Sincronizar com Shopee";
+  const label = shopeeSync.isPending
+    ? "Sincronizando..."
+    : scope === "products"
+      ? "Sincronizar produtos"
+      : scope === "orders"
+        ? "Sincronizar pedidos"
+        : "Sincronizar com Shopee";
 
   return (
     <Button type="button" size={compact ? "sm" : "default"} onClick={handleSync} disabled={shopeeSync.isPending}>
